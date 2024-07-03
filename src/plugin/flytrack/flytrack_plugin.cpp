@@ -25,7 +25,7 @@ namespace bias
     const double FlyTrackPlugin::MIN_VEL_MATCH_DOTPROD = 0.25;
 
     // ROI detection-related constants
-    const cv::Rect FlyTrackPlugin::ROI(650, 200, 600, 600); //(x,y,width,height)
+    //const cv::Rect FlyTrackPlugin::ROI(650, 200, 600, 600); //(x,y,width,height)
     const unsigned int FlyTrackPlugin::fish_detect_intensity_threshold = 50;
     const unsigned int FlyTrackPlugin::fish_detect_pixel_threshold = 50;
     
@@ -184,21 +184,20 @@ namespace bias
         // Dummy trigger
         
         
-        cv::Rect ROI_config(config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiHeight);
-        trigger = !scanFishOutsideROI(isFg_, ROI_config);
+        trigger = !scanFishOutsideROI(isFg_, cv::Rect(config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiHeight));
        
         
-        if (trigger && trigger_pulsed == 0) {
-            trigger_pulsed = 1;
+        if (trigger && trigger_pulsed == false) {
+            trigger_pulsed = true;
             has_triggered = true;
             printf("TRIGGER! %d\n", trigger_pulsed);
         }
         else if (!trigger) {
-            trigger_pulsed = 0;
+            trigger_pulsed = false;
         }
         //Dummy trigger ends here
 
-        cv::rectangle(isFg_, ROI, cv::Scalar(0, 0, 255), 2);
+        cv::rectangle(isFg_, cv::Rect(config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiHeight) , cv::Scalar(0, 0, 255), 2);
 
 
 
@@ -285,10 +284,7 @@ namespace bias
         }
         currentImageCopy = isFg_.clone();
         cv::cvtColor(currentImageCopy, currentImageCopy, cv::COLOR_GRAY2BGR);
-        
         cv::rectangle(currentImageCopy, cv::Rect(config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiWidth), cv::Scalar(0, 0, 255), 2);
-        
-        
     }
 
     void FlyTrackPlugin::getCurrentImageComputeBgMode(cv::Mat& currentImageCopy)
@@ -1188,8 +1184,8 @@ namespace bias
         switch (config.roiType) {
             case RECTANGLE:
                 //cv::circle(colorMatImage, cv::Point(config.roiCenterX, config.roiCenterY), config.roiRadius, cv::Scalar(0, 0, 255), 2);
-                cv::Rect ROI_config(config.roiCenterX, config.roiCenterY, config.roiWidth, config.roiHeight);
-                cv::rectangle(colorMatImage, ROI_config, cv::Scalar(0, 0, 255), 2);
+                
+                cv::rectangle(colorMatImage, cv::Rect(config.roiCenterX, config.roiCenterY, config.roiWidth, config.roiHeight) , cv::Scalar(0, 0, 255), 2);
                 
 				break;
         }
@@ -1608,7 +1604,7 @@ namespace bias
 
     QString fishStatusToJson(bool trigger) {
         QString json = QString("{");
-        json += QString("\"trigger\": %1,").arg(trigger);
+        json += QString("\"trigger\": %1").arg(trigger);
         json += QString("}");
         return json;
     }
