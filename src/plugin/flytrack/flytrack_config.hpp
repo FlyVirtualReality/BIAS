@@ -9,8 +9,8 @@
 namespace bias
 {
 
-    const int N_ROI_TYPES = 2;
-    enum ROIType { CIRCLE, NONE };
+    const int N_ROI_TYPES = 1;
+    enum ROIType {RECTANGLE};
 
     const int N_FLY_VS_BG_MODES = 3;
     enum FlyVsBgModeType { FLY_DARKER_THAN_BG, FLY_BRIGHTER_THAN_BG, FLY_ANY_DIFFERENCE_BG };
@@ -56,7 +56,8 @@ namespace bias
             ROIType roiType; // type of ROI
             double roiCenterX; // x-coordinate of ROI center
             double roiCenterY; // y-coordinate of ROI center
-            double roiRadius; // radius of ROI
+            double roiWidth; // radius of ROI
+            double roiHeight;
             int historyBufferLength; // number of frames to buffer velocity, orientation
             int maxTrackQueueLength; // number of tracks to buffer
             double minVelocityMagnitude; // minimum velocity magnitude in pixels/frame to consider fly moving
@@ -67,7 +68,7 @@ namespace bias
 
             FlyTrackConfig();
             FlyTrackConfig FlyTrackConfig::copy();
-            void setRoiParams(ROIType roiTypeNew, double roiCenterXNew, double roiCenterYNew, double roiRadiusNew);
+            void setRoiParams(ROIType roiTypeNew, double roiCenterXNew, double roiCenterYNew, double roiWidthNew, double roiHeightNew);
 
             RtnStatus setBgEstFromMap(QVariantMap configMap);
             RtnStatus setRoiFromMap(QVariantMap configMap);

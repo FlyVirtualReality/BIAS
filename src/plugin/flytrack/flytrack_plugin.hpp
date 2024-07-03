@@ -40,6 +40,7 @@ namespace bias
     void fitEllipse(cv::Mat& isFg, EllipseParams& flyEllipse);
     double mod2pi(double angle);
     QString ellipseToJson(EllipseParams ell);
+    QString fishStatusToJson(bool trigger);
     bool checkFileExists(QString file);
 
 
@@ -57,8 +58,18 @@ namespace bias
             static const unsigned int BG_HIST_NUM_BINS;
             static const unsigned int BG_HIST_BIN_SIZE;
             static const double MIN_VEL_MATCH_DOTPROD; // minimum dot product for velocity matching
+	        static const cv::Rect ROI;
+	        static const unsigned int fish_detect_intensity_threshold; // Maximum pixel intensity that defines a fish
+	        static const unsigned int fish_detect_pixel_threshold; // Minimum pixel count that detects a fish outside the ROI
+            bool trigger_pulsed; // Flag making sure trigger is pulsed only in the first frame after a fish leaves the ROI. Refresh after all fish return to ROI
+            bool trigger;
+            bool has_triggered; // Have all the fish entered the ROI since last resetting
+	        //static const unsigned int ROI_x;
+	        //static const unsigned int ROI_y;
+	        //static const unsigned int ROI_width;
+	        //static const unsigned int ROI_height;
 
-            FlyTrackPlugin(QWidget *parent=0);
+    	FlyTrackPlugin(QWidget *parent=0);
             bool pluginsEnabled();
             void setPluginsEnabled(bool value);
             void getUiValues(FlyTrackConfig &config);
@@ -72,6 +83,8 @@ namespace bias
             RtnStatus popBackTrack(EllipseParams& ell);
             RtnStatus getLastClearTrack(EllipseParams& ell);
             RtnStatus getArenaParams(EllipseParams& ell);
+
+            bool scanFishOutsideROI(cv::Mat& isFg, cv::Rect ROI);
 
             QPointer<CameraWindow> getCameraWindow();
 
@@ -115,6 +128,7 @@ namespace bias
             //void setBackgroundModel();
             void setBackgroundModel(cv::Mat& bgMedianImage, FlyTrackConfig& config);
             cv::Mat circleROI(double centerX, double centerY, double centerRadius);
+            cv::Mat rectangleROI(double centerX, double centerY, double width, double height);
             void backgroundSubtraction();
             void setROI(FlyTrackConfig config);
             void updateVelocityHistory();

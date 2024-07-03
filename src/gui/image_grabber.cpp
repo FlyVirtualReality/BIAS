@@ -67,6 +67,7 @@ namespace bias {
 
     void ImageGrabber::setIsVideo(bool v) {
         isVideo_ = v;
+        //isVideo_ = true;
     }
     void ImageGrabber::setVideoFileName(QString captureVideoFileName) {
         vidFileName_ = captureVideoFileName;

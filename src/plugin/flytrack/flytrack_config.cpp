@@ -13,7 +13,7 @@ namespace bias
     const int FlyTrackConfig::DEFAULT_BACKGROUND_THRESHOLD = 75; // foreground/background threshold, between 0 and 255
     const int FlyTrackConfig::DEFAULT_N_FRAMES_SKIP_BG_EST = 500; // number of frames used for background estimation, set to 0 to use all frames
     const FlyVsBgModeType FlyTrackConfig::DEFAULT_FLY_VS_BG_MODE = FLY_DARKER_THAN_BG; // whether the fly is darker than the background
-    const ROIType FlyTrackConfig::DEFAULT_ROI_TYPE = CIRCLE; // type of ROI
+    const ROIType FlyTrackConfig::DEFAULT_ROI_TYPE = RECTANGLE; // type of ROI
     const int FlyTrackConfig::DEFAULT_HISTORY_BUFFER_LENGTH = 5; // number of frames to buffer velocity, orientation
 	const int FlyTrackConfig::DEFAULT_MAX_TRACK_QUEUE_LENGTH = 10000; // maximum number of track frames to buffer
     const double FlyTrackConfig::DEFAULT_MIN_VELOCITY_MAGNITUDE = 1.0; // minimum velocity magnitude in pixels/frame to consider fly moving
@@ -36,9 +36,10 @@ namespace bias
 		minVelocityMagnitude = DEFAULT_MIN_VELOCITY_MAGNITUDE;
 		headTailWeightVelocity = DEFAULT_HEAD_TAIL_WEIGHT_VELOCITY;
 		DEBUG = DEFAULT_DEBUG;
-		roiCenterX = 0;
-		roiCenterY = 0;
-		roiRadius = 0;
+		roiCenterX = 100;
+		roiCenterY = 100;
+		roiWidth = 100;
+        roiHeight = 100;
         trackFileName = QString(""); // empty string means it is not set
         tmpTrackFilePath = QString(""); // empty string means it is not set
 	}
@@ -59,7 +60,7 @@ namespace bias
 		config.DEBUG = DEBUG;
 		config.roiCenterX = roiCenterX;
 		config.roiCenterY = roiCenterY;
-		config.roiRadius = roiRadius;
+		config.roiWidth = roiHeight;
         config.trackFileName = trackFileName;
         config.tmpTrackFilePath = tmpTrackFilePath;
 		return config;
@@ -81,7 +82,8 @@ namespace bias
         configStr += QString("roiType: %1\n").arg(roiTypeString);
         configStr += QString("roiCenterX: %1\n").arg(roiCenterX);
         configStr += QString("roiCenterY: %1\n").arg(roiCenterY);
-        configStr += QString("roiRadius: %1\n").arg(roiRadius);
+        configStr += QString("roiWidth: %1\n").arg(roiWidth);
+        configStr += QString("roiHeight: %1\n").arg(roiHeight);
         configStr += QString("historyBufferLength: %1\n").arg(historyBufferLength);
         configStr += QString("maxTrackQueueLength: %1\n").arg(maxTrackQueueLength);
         configStr += QString("minVelocityMagnitude: %1\n").arg(minVelocityMagnitude);
@@ -210,11 +212,21 @@ namespace bias
 
         if (configMap.contains("roiRadius")) {
             if (configMap["roiRadius"].canConvert<double>()) {
-                roiRadius = configMap["roiRadius"].toDouble();
+                roiWidth = configMap["roiWidth"].toDouble();
             }
             else {
                 rtnStatus.success = false;
-                rtnStatus.appendMessage(QString("unable to convert roiRadius to double"));
+                rtnStatus.appendMessage(QString("unable to convert roiWidth to double"));
+            }
+        }
+
+        if (configMap.contains("roiHeight")) {
+            if (configMap["roiHeight"].canConvert<double>()) {
+                roiHeight = configMap["roiHeight"].toDouble();
+            }
+            else {
+                rtnStatus.success = false;
+                rtnStatus.appendMessage(QString("unable to convert roiHeight to double"));
             }
         }
 		return rtnStatus;
@@ -356,7 +368,8 @@ namespace bias
         roiMap.insert("roiType", roiTypeString);
         roiMap.insert("roiCenterX", roiCenterX);
         roiMap.insert("roiCenterY", roiCenterY);
-        roiMap.insert("roiRadius", roiRadius);
+        roiMap.insert("roiWidth", roiWidth);
+        roiMap.insert("roiHeight", roiHeight);
 
         QVariantMap bgSubMap;
         bgSubMap.insert("backgroundThreshold", backgroundThreshold);
@@ -421,23 +434,16 @@ namespace bias
 
     bool roiTypeToString(ROIType roiType, QString& roiTypeString) {
         switch (roiType) {
-        case CIRCLE:
-            roiTypeString = QString("CIRCLE");
-            return true;
-        case NONE:
-            roiTypeString = QString("NONE");
+        case RECTANGLE:
+            roiTypeString = QString("RECTANGLE");
             return true;
         default:
             return false;
         }
     }
     bool roiTypeFromString(QString roiTypeString, ROIType& roiType) {
-        if (roiTypeString == "CIRCLE") {
-            roiType = CIRCLE;
-            return true;
-        }
-        if (roiTypeString == "NONE") {
-            roiType = NONE;
+        if (roiTypeString == "RECTANGLE") {
+            roiType = RECTANGLE;
             return true;
         }
         roiTypeString = "UNKNOWN";
@@ -477,11 +483,12 @@ namespace bias
         return false;
     }
 
-    void FlyTrackConfig::setRoiParams(ROIType roiTypeNew, double roiCenterXNew, double roiCenterYNew, double roiRadiusNew) {
+    void FlyTrackConfig::setRoiParams(ROIType roiTypeNew, double roiCenterXNew, double roiCenterYNew, double roiWidthNew, double roiHeightNew) {
         roiType = roiTypeNew;
         roiCenterX = roiCenterXNew;
         roiCenterY = roiCenterYNew;
-        roiRadius = roiRadiusNew;
+        roiWidth = roiWidthNew;
+        roiHeight = roiHeightNew;
     }
 
 

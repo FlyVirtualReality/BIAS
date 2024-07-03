@@ -24,6 +24,13 @@ namespace bias
     const unsigned int FlyTrackPlugin::BG_HIST_BIN_SIZE = 1;
     const double FlyTrackPlugin::MIN_VEL_MATCH_DOTPROD = 0.25;
 
+    // ROI detection-related constants
+    const cv::Rect FlyTrackPlugin::ROI(650, 200, 600, 600); //(x,y,width,height)
+    const unsigned int FlyTrackPlugin::fish_detect_intensity_threshold = 50;
+    const unsigned int FlyTrackPlugin::fish_detect_pixel_threshold = 50;
+    
+    
+
     // Public
     // ------------------------------------------------------------------------
 
@@ -69,6 +76,9 @@ namespace bias
         //headTailWeightVelocity_ = 3.0; // weight of head-tail dot product vs previous orientation dot product
 
         bgImageComputed_ = false;
+        trigger = false;
+        trigger_pulsed = false;
+        has_triggered = false;
         active_ = false;
         lastFramePreviewed_ = -1;
         flyEllipseDequePtr_ = std::make_shared<LockableDeque<EllipseParams>>();
@@ -170,8 +180,30 @@ namespace bias
 
         // Get background/foreground membership, 255=background, 0=foreground
         backgroundSubtraction();
+        
+        // Dummy trigger
+        
+        
+        cv::Rect ROI_config(config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiHeight);
+        trigger = !scanFishOutsideROI(isFg_, ROI_config);
+       
+        
+        if (trigger && trigger_pulsed == 0) {
+            trigger_pulsed = 1;
+            has_triggered = true;
+            printf("TRIGGER! %d\n", trigger_pulsed);
+        }
+        else if (!trigger) {
+            trigger_pulsed = 0;
+        }
+        //Dummy trigger ends here
+
+        cv::rectangle(isFg_, ROI, cv::Scalar(0, 0, 255), 2);
+
+
 
         // find connected components in isFg_
+        /*
         int ccArea = largestConnectedComponent(isFg_);
 
         // compute mean and covariance of pixels in foreground
@@ -195,7 +227,7 @@ namespace bias
         }
 
         isFirst_ = false;
-
+        */
     } 
 
     void FlyTrackPlugin::processFramesBgEstMode(QList<StampedImage> frameList) {
@@ -225,6 +257,7 @@ namespace bias
 
     }
 
+    /*
     void FlyTrackPlugin::getCurrentImageTrackMode(cv::Mat& currentImageCopy)
     {
         if (!bgImageComputed_) {
@@ -241,6 +274,21 @@ namespace bias
         cv::Point2d head = cv::Point2d(flyEllipse_.x + flyEllipse_.a * std::cos(flyEllipse_.theta),
             			flyEllipse_.y + flyEllipse_.a * std::sin(flyEllipse_.theta));
         cv::drawMarker(currentImageCopy, head, cv::Scalar(255, 0, 0), cv::MARKER_CROSS, 10, 2);
+    }
+    */
+
+    void FlyTrackPlugin::getCurrentImageTrackMode(cv::Mat& currentImageCopy)
+    {
+        if (!bgImageComputed_) {
+            currentImageCopy = currentImage_.clone();
+            return;
+        }
+        currentImageCopy = isFg_.clone();
+        cv::cvtColor(currentImageCopy, currentImageCopy, cv::COLOR_GRAY2BGR);
+        
+        cv::rectangle(currentImageCopy, cv::Rect(config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiWidth), cv::Scalar(0, 0, 255), 2);
+        
+        
     }
 
     void FlyTrackPlugin::getCurrentImageComputeBgMode(cv::Mat& currentImageCopy)
@@ -351,6 +399,13 @@ namespace bias
 				value = ellipseToJson(ell);
             }
         }
+        else if (cmd == QString("get-fish-status")) {
+            value = fishStatusToJson(has_triggered);
+        }
+        else if (cmd == QString("reset-fish-trigger")) {
+            value = fishStatusToJson(has_triggered);
+            has_triggered = false;
+        }
         else if (cmd == QString("pop-back-track"))
         {
 			EllipseParams ell;
@@ -459,12 +514,12 @@ namespace bias
         RtnStatus rtnStatus;
         rtnStatus.success = true;
         rtnStatus.message = QString("");
-        if (config_.roiType == NONE) return rtnStatus;
-		ell.x = config_.roiCenterX;
-		ell.y = config_.roiCenterY;
-		ell.a = config_.roiRadius;
-		ell.b = config_.roiRadius;
-		ell.theta = 0.0;
+        //if (config_.roiType == NONE) return rtnStatus;
+		//ell.x = config_.roiCenterX;
+		//ell.y = config_.roiCenterY;
+		//ell.a = config_.roiRadius;
+		//ell.b = config_.roiRadius;
+		//ell.theta = 0.0;
         return rtnStatus;
     }
 
@@ -478,17 +533,15 @@ namespace bias
         roiTypeComboBox->setCurrentIndex(config_.roiType);
         roiCenterXSpinBox->setValue(config_.roiCenterX);
         roiCenterYSpinBox->setValue(config_.roiCenterY);
-        roiRadiusSpinBox->setValue(config_.roiRadius);
+        roiWidthSpinBox->setValue(config_.roiWidth);
+        roiHeightSpinBox->setValue(config_.roiHeight);
 
-        if(config_.roiType == NONE) {
-            roiCenterXSpinBox->setEnabled(false);
-			roiCenterYSpinBox->setEnabled(false);
-			roiRadiusSpinBox->setEnabled(false);
-		} else {
-            roiCenterXSpinBox->setEnabled(true);
-			roiCenterYSpinBox->setEnabled(true);
-			roiRadiusSpinBox->setEnabled(true);
-		}
+
+        roiCenterXSpinBox->setEnabled(true);
+        roiCenterYSpinBox->setEnabled(true);
+        roiWidthSpinBox->setEnabled(true);
+        roiHeightSpinBox->setEnabled(true);
+		
 
     }
 
@@ -530,12 +583,6 @@ namespace bias
         );
         connect(
             roiCenterYSpinBox,
-            SIGNAL(valueChanged(int)),
-            this,
-            SLOT(roiUiChanged(int))
-        );
-        connect(
-            roiRadiusSpinBox,
             SIGNAL(valueChanged(int)),
             this,
             SLOT(roiUiChanged(int))
@@ -751,9 +798,6 @@ namespace bias
             flyVsBgModeComboBox->setCurrentIndex(config_.flyVsBgMode);
             backgroundThresholdLineEdit->setText(QString::number(config_.backgroundThreshold));
             setRoiUIValues();
-            historyBufferLengthSpinBox->setValue(config_.historyBufferLength);
-            minVelocityMagnitudeLineEdit->setText(QString::number(config_.minVelocityMagnitude));
-            headTailWeightVelocityLineEdit->setText(QString::number(config_.headTailWeightVelocity));
             logFilePathLineEdit->setText(config_.tmpTrackFilePath);
             logFileNameLineEdit->setText(config_.trackFileName);
             tmpOutDirLineEdit->setText(config_.tmpOutDir);
@@ -802,8 +846,9 @@ namespace bias
         ROIType roiType = (ROIType)roiTypeComboBox->currentIndex();
         double roiCenterX = roiCenterXSpinBox->value();
         double roiCenterY = roiCenterYSpinBox->value();
-        double roiRadius = roiRadiusSpinBox->value();
-        config.setRoiParams(roiType, roiCenterX, roiCenterY, roiRadius);
+        double roiWidth = roiWidthSpinBox->value();
+        double roiHeight = roiHeightSpinBox->value();
+        config.setRoiParams(roiType, roiCenterX, roiCenterY, roiWidth, roiHeight);
     }
 
     void FlyTrackPlugin::getUiBgEstValues(FlyTrackConfig& config) {
@@ -818,9 +863,6 @@ namespace bias
             config.flyVsBgMode = (FlyVsBgModeType)flyVsBgModeComboBox->currentIndex();
             config.backgroundThreshold = backgroundThresholdLineEdit->text().toInt();
             getUiRoiValues(config);
-            config.historyBufferLength = historyBufferLengthSpinBox->value();
-            config.minVelocityMagnitude = minVelocityMagnitudeLineEdit->text().toDouble();
-            config.headTailWeightVelocity = headTailWeightVelocityLineEdit->text().toDouble();
             config.tmpOutDir = tmpOutDirLineEdit->text();
             config.DEBUG = DEBUGCheckBox->isChecked();
             config.tmpTrackFilePath = logFilePathLineEdit->text();
@@ -848,33 +890,21 @@ namespace bias
         backgroundThresholdLabel->setEnabled(!v);
         roiTypeComboBox->setEnabled(!v);
         roiTypeLabel->setEnabled(!v);
-        historyBufferLengthSpinBox->setEnabled(!v);
-        historyBufferLengthLabel->setEnabled(!v);
-        minVelocityMagnitudeLineEdit->setEnabled(!v);
-        minVelocityMagnitudeLabel->setEnabled(!v);
-        headTailWeightVelocityLineEdit->setEnabled(!v);
-        headTailWeightVelocityLabel->setEnabled(!v);
         logFilePathLineEdit->setEnabled(!v);
         logFilePathLabel->setEnabled(!v);
 
         roiTypeComboBox->setEnabled(!v);
         roiTypeLabel->setEnabled(!v);
         switch (config.roiType) {
-            case NONE:
-                roiCenterXSpinBox->setEnabled(false);
-                roiCenterXLabel->setEnabled(false);
-                roiCenterYSpinBox->setEnabled(false);
-                roiCenterYLabel->setEnabled(false);
-                roiRadiusSpinBox->setEnabled(false);
-                roiRadiusLabel->setEnabled(false);
-                break;
-            case CIRCLE:
+            case RECTANGLE:
                 roiCenterXSpinBox->setEnabled(!v);
                 roiCenterXLabel->setEnabled(!v);
                 roiCenterYSpinBox->setEnabled(!v);
                 roiCenterYLabel->setEnabled(!v);
-                roiRadiusSpinBox->setEnabled(!v);
-                roiRadiusLabel->setEnabled(!v);
+                roiWidthSpinBox->setEnabled(!v);
+                roiWidthLabel->setEnabled(!v);
+                roiHeightSpinBox->setEnabled(!v);
+                roiHeightLabel->setEnabled(!v);
                 break;
         }
 		tmpOutDirLineEdit->setEnabled(true);
@@ -1063,17 +1093,24 @@ namespace bias
         return mask;
     }
 
+    cv::Mat FlyTrackPlugin::rectangleROI(double centerX, double centerY, double width, double height) {
+        cv::Mat mask = cv::Mat::zeros(bgMedianImage_.size(), CV_8U);
+        cv::rectangle(mask, cv::Rect(centerX, centerY, width, height), cv::Scalar(255), -1);
+        return mask;
+    }
+
     // void setROI()
     // set the region of interest mask based on roiType_
     // currently only circle implemented
+
     void FlyTrackPlugin::setROI(FlyTrackConfig config) {
         if (!bgImageComputed_) return;
         printf("setting ROI\n");
         // roi mask
         switch (config.roiType) {
-        case CIRCLE:
-            printf("setting circle ROI: center %f, %f, radius %f\n", config.roiCenterX, config.roiCenterY, config.roiRadius);
-            inROI_ = circleROI(config.roiCenterX, config.roiCenterY, config.roiRadius);
+        case RECTANGLE:
+            printf("setting rectangle ROI: center %f, %f, radius %f\n", config.roiCenterX, config.roiCenterY, config.roiWidth, config.roiHeight);
+            inROI_ = rectangleROI(config.roiCenterX, config.roiCenterY, config.roiWidth, config.roiHeight);
             break;
         }
     }
@@ -1113,7 +1150,8 @@ namespace bias
         cv::subtract(bgMedianImage, config_.backgroundThreshold, bgLowerBoundImage_);
         roiCenterXSpinBox->setRange(0, bgMedianImage.cols);
         roiCenterYSpinBox->setRange(0, bgMedianImage.rows);
-        roiRadiusSpinBox->setRange(0, std::max(bgMedianImage.cols,bgMedianImage.rows));
+        roiWidthSpinBox->setRange(0, bgMedianImage.cols);
+        roiHeightSpinBox->setRange(0, bgMedianImage.rows);
 
         // roi mask
         setROI(config);
@@ -1148,8 +1186,11 @@ namespace bias
         cv::Mat colorMatImage = matImage.clone();
         cv::cvtColor(colorMatImage, colorMatImage, cv::COLOR_GRAY2BGR);
         switch (config.roiType) {
-            case CIRCLE:
-                cv::circle(colorMatImage, cv::Point(config.roiCenterX, config.roiCenterY), config.roiRadius, cv::Scalar(0, 0, 255), 2);
+            case RECTANGLE:
+                //cv::circle(colorMatImage, cv::Point(config.roiCenterX, config.roiCenterY), config.roiRadius, cv::Scalar(0, 0, 255), 2);
+                cv::Rect ROI_config(config.roiCenterX, config.roiCenterY, config.roiWidth, config.roiHeight);
+                cv::rectangle(colorMatImage, ROI_config, cv::Scalar(0, 0, 255), 2);
+                
 				break;
         }
 
@@ -1185,9 +1226,14 @@ namespace bias
             cv::bitwise_not(isFg_, isFg_);
             break;
         }
+        
+        /*
         if (config_.roiType != NONE) {
             cv::bitwise_and(isFg_, inROI_, isFg_);
         }
+        */
+        
+
         if (config_.DEBUG && isFirst_) {
             printf("Outputting background subtraction debug images\n");
             if (!QFile::exists(config_.tmpOutDir)) {
@@ -1211,12 +1257,10 @@ namespace bias
                 printf("Writing foreground mask to %s\n", tmpOutFile.toStdString().c_str());
                 success = cv::imwrite(tmpOutFile.toStdString(), isFg_);
                 if (!success) printf("Failed writing foreground mask to %s\n", tmpOutFile.toStdString().c_str());
-                if (config_.roiType != NONE) {
-                    tmpOutFile = config_.tmpOutDir + QString("\\inROI.png");
-                    printf("Writing ROI mask to %s\n", tmpOutFile.toStdString().c_str());
-                    success = cv::imwrite(tmpOutFile.toStdString(), inROI_);
-                    if (!success) printf("Failed writing ROI mask to %s\n", tmpOutFile.toStdString().c_str());
-                }
+                tmpOutFile = config_.tmpOutDir + QString("\\inROI.png");
+                printf("Writing ROI mask to %s\n", tmpOutFile.toStdString().c_str());
+                success = cv::imwrite(tmpOutFile.toStdString(), inROI_);
+                if (!success) printf("Failed writing ROI mask to %s\n", tmpOutFile.toStdString().c_str());
             }
         }
     }
@@ -1349,7 +1393,7 @@ namespace bias
         //printf("Total cost0: %f, cost1: %f\n", cost0, cost1);
 
         if (cost1 < cost0) {
-            // add pi
+            // add pisiz
             flyEllipse_.theta += M_PI;
         }
 
@@ -1446,6 +1490,33 @@ namespace bias
         backgroundData.clear();
     }
 
+    bool FlyTrackPlugin::scanFishOutsideROI(cv::Mat& isFg, cv::Rect ROI) {
+        // Summary: Mask out the ROI using 0. Then calculate the pixels that are brighter than the threshold over the entire (masked) image.
+        unsigned int count_pixels_outside_ROI = 0;
+        int image_width = isFg.rows;
+        int image_height = isFg.cols;
+        cv::Mat masked_image = isFg.clone();
+        
+        // Mask
+        for (int row_idx = ROI.y; row_idx < ROI.y + ROI.height; row_idx++) {
+            for (int col_idx = ROI.x; col_idx < ROI.x + ROI.width; col_idx++) {
+                masked_image.at<uchar>(row_idx, col_idx) = 0;
+            }
+        }
+
+        // Count
+        cv::Mat binary_image;
+        cv::threshold(masked_image, binary_image, fish_detect_intensity_threshold, 255, cv::THRESH_BINARY);
+        unsigned int count = cv::countNonZero(binary_image);
+        
+        if (count > fish_detect_pixel_threshold) {
+            return 1;
+        }
+        
+
+        return 0;
+    }
+
     // int largestConnectedComponent(cv::Mat& isFg)
     // find largest connected components in isFg
     // inputs:
@@ -1531,6 +1602,13 @@ namespace bias
         json += QString("\"a\": %1,").arg(ell.a);
         json += QString("\"b\": %1,").arg(ell.b);
         json += QString("\"theta\": %1").arg(ell.theta);
+        json += QString("}");
+        return json;
+    }
+
+    QString fishStatusToJson(bool trigger) {
+        QString json = QString("{");
+        json += QString("\"trigger\": %1,").arg(trigger);
         json += QString("}");
         return json;
     }
