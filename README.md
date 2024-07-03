@@ -40,6 +40,8 @@ http://public.iorodeo.com/notes/bias/
 
 ## FlyTrack plugin
 
+![FlyTrack Plugin Demo](images/DemoRTFlyTrack.gif)
+
 Step-by-step instructions for doing real-time tracking of a single fly:
 
 - Start BIAS
@@ -48,26 +50,26 @@ Step-by-step instructions for doing real-time tracking of a single fly:
 - Under the **Plugins** menu, select **FlyTrack**.
 - Under the **Plugins** menu, select **Enabled** and make sure that there is a check mark next to it.
 - *Compute the background model image*. This step can be skipped if you have a pre-computed background image from a previous run. 
--- Access the plugin settings from the menu **Plugins->Settings**.
--- Choose **Mode: Compute Background Image**
--- Choose a location to save the background image to at the field **Bkgd Image Path**. There is currently limited error checking. Make sure that this is a reasonable path (file does not have to exist, but the parent directory does). Example: `C:/Code/BIAS/testdata/20240409T155835_P1_movie1_bg_v0.png`.
--- Click "Done"
--- Click **Start** to start the camera running. Switch to the **Plugin Preview** tab to see the current estimate of the background image. You can **Stop** the camera when the background image looks correct -- like what the video would look like without any flies in it. 
+    - Access the plugin settings from the menu **Plugins->Settings**.
+    - Choose **Mode: Compute Background Image**
+    - Choose a location to save the background image to at the field **Bkgd Image Path**. There is currently limited error checking. Make sure that this is a reasonable path (file does not have to exist, but the parent directory does). Example: `C:/Code/BIAS/testdata/20240409T155835_P1_movie1_bg_v0.png`.
+    - Click "Done"
+    - Click **Start** to start the camera running. Switch to the **Plugin Preview** tab to see the current estimate of the background image. You can **Stop** the camera when the background image looks correct -- like what the video would look like without any flies in it. 
 - Set up tracking mode:
--- Go back to **Plugins->Settings**.
--- Switch to **Mode: Track Fly**
--- If you skipped the "Compute the background model image" step above, select an existing **Bkgd Image Path** and click **Load**. This will be pre-loaded if you followed the "Compute the background model image" step above. The background image should be visible on the right side of the Settings dialog.
--- Modify the following parameters as needed:
---- Background subtraction parameters:
----- **Comparison Mode**: Whether flies are darker than the background, lighter than the background, or either. 
----- **Background Threshold**: Minimum difference from background to be considered foreground. 
---- Region of Interest (ROI) parameters: Set the Region of Interest (ROI) where the fly can be. This will be shown in the preview window with a red outline. 
---- The **History Buffer Length**, **Min Speed**, and **Speed Weight** parameters are used for telling which side of the fly is the head vs the tail. 
---- Output file parameters:
----- **Output Trajectory File Name**: Base name of the output trajectory. By default, this will go in the same directory as the video being logged. Example value: `track`. 
----- **Absolute Path**: If you prefer to specify the absolute path to the output file, specify it here. 
----- **Debug Output Folder**: Where to output debug information. Only needs to be set if the **Debug** flag is true. 
--- Click **Done**
+    - Go back to **Plugins->Settings**.
+    - Switch to **Mode: Track Fly**
+    - If you skipped the "Compute the background model image" step above, select an existing **Bkgd Image Path** and click **Load**. This will be pre-loaded if you followed the "Compute the background model image" step above. The background image should be visible on the right side of the Settings dialog.
+    - Modify the following parameters as needed:
+        - Background subtraction parameters:
+            - **Comparison Mode**: Whether flies are darker than the background, lighter than the background, or either. 
+            - **Background Threshold**: Minimum difference from background to be considered foreground. 
+        - Region of Interest (ROI) parameters: Set the Region of Interest (ROI) where the fly can be. This will be shown in the preview window with a red outline. 
+        - The **History Buffer Length**, **Min Speed**, and **Speed Weight** parameters are used for telling which side of the fly is the head vs the tail. 
+        - Output file parameters:
+            - **Output Trajectory File Name**: Base name of the output trajectory. By default, this will go in the same directory as the video being logged. Example value: `track`. 
+            - **Absolute Path**: If you prefer to specify the absolute path to the output file, specify it here. 
+            - **Debug Output Folder**: Where to output debug information. Only needs to be set if the **Debug** flag is true. 
+    - Click **Done**
 - If you want to reuse this configuration later, select **File->Save Configuration**. The FlyTrack plugin configuration will be part of the general BIAS configuration file. You can load this configuration later by choosing **File->Load Configuration**. 
 - If you want to record video as well, enable logging under the **Logging** menu. 
 - **Start** the camera running. If you switch again to the **Plugin Preview** tab, you should see the foreground/background classification, the ellipse fit to this, and an asterisk plotted at the side of the fly assigned to tbe the head. 
