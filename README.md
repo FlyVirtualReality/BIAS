@@ -94,22 +94,33 @@ Here is how I built BIAS on Windows, May 2024.
     - Python development (probably not necessary)
     - Github copilot workloads (definitely not necessary)
 - Installed CMake 3.29.2 https://cmake.org/download/
-- Anaconda version 2023.07.1 was installed on my machine already, used its build of Qt
-  - Added Qt to my PATH environment variable:
-  - \<anaconda3\>\Library\Lib\cmake\Qt5
-  - \<anaconda3\>\Library\plugins\platforms
-  - \<anaconda3\>\Library\bin
+- Install Qt5
+    - if Anaconda is installed this comes with Qt:
+        - Anaconda version 2023.07.1 was installed on my machine already, used its build of Qt
+        - Added Qt to my PATH environment variable:
+        - \<anaconda3>\Library\Lib\cmake\Qt5
+        - \<anaconda3>\Library\plugins\platforms
+        - \<anaconda3>\Library\bin
+    - otherwise get the online installer from https://www.qt.io/download-open-source
+        - activate the installation from "Archive"
+        - choose the latest Qt5 version (e.g. 5.15.2)
+        - select the build environment you want to use (e.g. MSVC 2019 64-bit)
+        - deselect all other environments to save time and space
+        - add to PATH: <qt5>\msvc2019_64\lib\cmake, <qt5>\msvc2019_64\bin, <qt5>\msvc2019_64\plugins\platform
 - Cloned OpenCV 4 from https://github.com/opencv/opencv
 - Built OpenCV:
   - In CMake, set <opencv> as source directory and <opencv>/build as build directory
   - Clicked Configure
   - Made sure WITH_FFMPEG was checked (default)
-  - Made sure CMAKE_INSTALL_PREFIX was \<opencv4\>/build/install (default)
+  - Made sure CMAKE_INSTALL_PREFIX was \<opencv>/build/install (default)
   - Clicked Configure
   - Clicked Generate
   - Opened the project in VisualStudio
   - Chose Release x64 and Build
-- Added \<opencv\>\build\bin\Release to PATH environment variable
+- Added \<opencv>\build\bin\Release to PATH environment variable
 - Downloaded and installed Spinnaker 2.6.0. There are newer versions, code might not be compatible.
 - Opened BIAS in CMake, configured, made sure Spinnaker and Video backends were selected, generated, opened in VisualStudio, and built. 
 - This builds test_gui.exe, which can be run by double-clicking or from the command line.
+    - With the vanilla Qt5 installation, I also had to follow the [Qt Windows Deployment step](https://wiki.qt.io/Deploy_an_Application_on_Windows) and run: `<qt5>\msvc2019_64\bin\windeployqt.exe test_gui.exe`
+
+![screenshot from the Qt5 installer](images/qt5-installer.png)
