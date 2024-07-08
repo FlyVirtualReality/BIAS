@@ -1105,7 +1105,7 @@ namespace bias
         // roi mask
         switch (config.roiType) {
         case RECTANGLE:
-            printf("setting rectangle ROI: center %f, %f, radius %f\n", config.roiCenterX, config.roiCenterY, config.roiWidth, config.roiHeight);
+            printf("setting rectangle ROI: top left corner %f, %f, width %f, height %f\n", config.roiCenterX, config.roiCenterY, config.roiWidth, config.roiHeight);
             inROI_ = rectangleROI(config.roiCenterX, config.roiCenterY, config.roiWidth, config.roiHeight);
             break;
         }

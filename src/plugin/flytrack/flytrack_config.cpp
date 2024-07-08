@@ -60,7 +60,8 @@ namespace bias
 		config.DEBUG = DEBUG;
 		config.roiCenterX = roiCenterX;
 		config.roiCenterY = roiCenterY;
-		config.roiWidth = roiHeight;
+		config.roiWidth = roiWidth;
+        config.roiHeight = roiHeight;
         config.trackFileName = trackFileName;
         config.tmpTrackFilePath = tmpTrackFilePath;
 		return config;
@@ -212,6 +213,16 @@ namespace bias
 
         if (configMap.contains("roiRadius")) {
             if (configMap["roiRadius"].canConvert<double>()) {
+                roiWidth = configMap["roiRadius"].toDouble();
+            }
+            else {
+                rtnStatus.success = false;
+                rtnStatus.appendMessage(QString("unable to convert roiRadius to double"));
+            }
+        }
+
+        if (configMap.contains("roiWidth")) {
+            if (configMap["roiWidth"].canConvert<double>()) {
                 roiWidth = configMap["roiWidth"].toDouble();
             }
             else {
