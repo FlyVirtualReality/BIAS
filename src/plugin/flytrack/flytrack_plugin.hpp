@@ -61,6 +61,7 @@ namespace bias
 	        static const cv::Rect ROI;
 	        static const unsigned int fish_detect_intensity_threshold; // Maximum pixel intensity that defines a fish
 	        static const unsigned int fish_detect_pixel_threshold; // Minimum pixel count that detects a fish outside the ROI
+            static const unsigned int fish_size_threshold; // Minimum pixel count that identifies a blob as a fish
             bool trigger_pulsed; // Flag making sure trigger is pulsed only in the first frame after a fish leaves the ROI. Refresh after all fish return to ROI
             bool trigger;
             bool has_triggered; // Have all the fish entered the ROI since last resetting
@@ -85,6 +86,7 @@ namespace bias
             RtnStatus getArenaParams(EllipseParams& ell);
 
             bool scanFishOutsideROI(cv::Mat& isFg, cv::Rect ROI);
+            bool detectFishInsideROI(cv::Mat& isFg, cv::Rect ROI);
 
             QPointer<CameraWindow> getCameraWindow();
 

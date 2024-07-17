@@ -26,8 +26,9 @@ namespace bias
 
     // ROI detection-related constants
     //const cv::Rect FlyTrackPlugin::ROI(650, 200, 600, 600); //(x,y,width,height)
-    const unsigned int FlyTrackPlugin::fish_detect_intensity_threshold = 50;
-    const unsigned int FlyTrackPlugin::fish_detect_pixel_threshold = 50;
+    const unsigned int FlyTrackPlugin::fish_detect_intensity_threshold = 20;
+    const unsigned int FlyTrackPlugin::fish_detect_pixel_threshold = 30;
+    const unsigned int FlyTrackPlugin::fish_size_threshold = 30;
     
     
 
@@ -78,7 +79,7 @@ namespace bias
         bgImageComputed_ = false;
         trigger = false;
         trigger_pulsed = false;
-        has_triggered = false;
+        has_triggered = true;
         active_ = false;
         lastFramePreviewed_ = -1;
         flyEllipseDequePtr_ = std::make_shared<LockableDeque<EllipseParams>>();
@@ -182,19 +183,33 @@ namespace bias
         backgroundSubtraction();
         
         // Dummy trigger
+        //trigger = !scanFishOutsideROI(isFg_, cv::Rect(config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiHeight));
+        trigger = detectFishInsideROI(isFg_, cv::Rect(config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiHeight));
+        //printf("Trigger status: %d\n", trigger);
         
-        
-        trigger = !scanFishOutsideROI(isFg_, cv::Rect(config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiHeight));
-       
-        
-        if (trigger && trigger_pulsed == false) {
+        if (trigger && !trigger_pulsed) {
             trigger_pulsed = true;
-            has_triggered = true;
-            printf("TRIGGER! %d\n", trigger_pulsed);
+            if (has_triggered) {
+                printf("All fish were found in the ROI. The trigger was not reset through MATLAB. 'detect' signal will not be sent over the server\n");
+                //printf("Debugging log:\n");
+                //printf("trigger_pulsed: %s, has_triggered: %s, trigger: %s \n", trigger_pulsed ? "true" : "false", has_triggered ? "true" : "false", trigger ? "true" : "false");
+                fflush(stdout);
+            }
         }
-        else if (!trigger) {
+        
+        if (!trigger) {
             trigger_pulsed = false;
         }
+
+        if (trigger && !has_triggered) {
+            has_triggered = true;
+            trigger_pulsed = true;
+            printf("Reset command was received from the server through MATLAB. Sending 'detect' signal to the server\n");
+            printf("Debugging log:\n");
+            printf("All conditions were met. Trigger pulsed successfully!"); 
+            fflush(stdout);
+        }
+
         //Dummy trigger ends here
 
         cv::rectangle(isFg_, cv::Rect(config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiHeight) , cv::Scalar(0, 0, 255), 2);
@@ -284,7 +299,7 @@ namespace bias
         }
         currentImageCopy = isFg_.clone();
         cv::cvtColor(currentImageCopy, currentImageCopy, cv::COLOR_GRAY2BGR);
-        cv::rectangle(currentImageCopy, cv::Rect(config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiWidth), cv::Scalar(0, 0, 255), 2);
+        cv::rectangle(currentImageCopy, cv::Rect(config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiHeight), cv::Scalar(0, 0, 255), 2);
     }
 
     void FlyTrackPlugin::getCurrentImageComputeBgMode(cv::Mat& currentImageCopy)
@@ -1502,15 +1517,15 @@ namespace bias
 
         // Count
         cv::Mat binary_image;
+        
         cv::threshold(masked_image, binary_image, fish_detect_intensity_threshold, 255, cv::THRESH_BINARY);
         unsigned int count = cv::countNonZero(binary_image);
-        
         if (count > fish_detect_pixel_threshold) {
-            return 1;
+            return true;
         }
         
 
-        return 0;
+        return false;
     }
 
     // int largestConnectedComponent(cv::Mat& isFg)
@@ -1545,6 +1560,41 @@ namespace bias
     // inputs:
     // isFg: binary image, 255=background, 0=foreground
     // flyEllipse: destination for ellipse parameters
+
+
+    bool FlyTrackPlugin::detectFishInsideROI(cv::Mat& isFg, cv::Rect ROI) {
+        cv::Mat mask = cv::Mat::zeros(isFg.size(), CV_8U);
+        cv::rectangle(mask, ROI, cv::Scalar(255), cv::FILLED);
+        cv::Mat masked_image;
+        isFg.copyTo(masked_image, mask);
+        cv::Mat binary_image;
+        cv::threshold(masked_image, binary_image, fish_detect_intensity_threshold, 255, cv::THRESH_BINARY);
+
+        unsigned int n_fish_inside_roi = 0;
+        std::vector<std::vector<cv::Point>> contours;
+        cv::findContours(masked_image, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+        for (int i = 0; i < contours.size(); i++) {
+            cv::Moments mu = cv::moments(contours[i], false);
+
+            //Area 
+            double area = cv::contourArea(contours[i]);
+
+            if (area > fish_detect_pixel_threshold) {
+                //Calculate centroid
+                // cv::Point2f centroid(mu.m10 / mu.m00, mu.m01 / mu.m00); Not needed right now
+                n_fish_inside_roi ++;
+            }
+        }
+       
+        if (n_fish_inside_roi == 3) {
+            return true;
+        }
+        return false;
+    }
+
+
+
     void fitEllipse(cv::Mat& isFg, EllipseParams& flyEllipse) {
 
         // eigen decomposition of covariance matrix
