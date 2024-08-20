@@ -216,7 +216,8 @@ namespace bias
             isFirst_ = false;
             return;
         }
-        if (latestFrame.frameCount <= lastFrameAdded_ + config_.nFramesSkipBgEst) {
+        
+        if (latestFrame.frameCount <= static_cast<unsigned long>(lastFrameAdded_ + config_.nFramesSkipBgEst)) {
 			return;
 		}
         backgroundData_.addImage(latestFrame);
@@ -1484,16 +1485,16 @@ namespace bias
         // this probably isn't the fastest way to do this, but
         // it seems to work
         cv::Mat fgPixels;
+        int maxSize = static_cast<int>(isFg.total());
         cv::findNonZero(isFg, fgPixels);
-		if (fgPixels.rows == 0) {
-            printf("No foreground pixels found.\n");
+        if (fgPixels.rows == 0 || fgPixels.rows == maxSize) {
             flyEllipse.x = 0.0;
-			flyEllipse.y = 0.0;
-			flyEllipse.a = 0.0;
-			flyEllipse.b = 0.0;
-			flyEllipse.theta = 0.0;
-			return;
-		}
+            flyEllipse.y = 0.0;
+            flyEllipse.a = 0.0;
+            flyEllipse.b = 0.0;
+            flyEllipse.theta = 0.0;
+            return;
+        }
         cv::Mat fgPixelsD = cv::Mat::zeros(fgPixels.rows, 2, CV_64F);
         for (int i = 0; i < fgPixels.rows; i++) {
             fgPixelsD.at<double>(i, 0) = fgPixels.at<cv::Point>(i).x;
@@ -1509,7 +1510,10 @@ namespace bias
         double lambda1 = pca_analysis.eigenvalues.at<double>(0);
         double lambda2 = pca_analysis.eigenvalues.at<double>(1);
         flyEllipse.a = std::sqrt(lambda1) * 2.0;
+        if (std::isnan(flyEllipse.a)) { flyEllipse.a = 0.0; }
         flyEllipse.b = std::sqrt(lambda2) * 2.0;
+        if (std::isnan(flyEllipse.b)) { flyEllipse.b = 0.0; } // Workaround in case lambda2 is "-0.0" or large negative number
+
     }
 
     double mod2pi(double angle) {
