@@ -235,10 +235,10 @@ namespace bias
         currentImageCopy = isFg_.clone(); 
         cv::cvtColor(currentImageCopy, currentImageCopy, cv::COLOR_GRAY2BGR);
         // plot fit ellipse
-        cv::ellipse(currentImageCopy, cv::Point(flyEllipse_.x, flyEllipse_.y), 
-            		cv::Size(flyEllipse_.a, flyEllipse_.b), 
-                    flyEllipse_.theta * 180.0 / M_PI, 
-                    0, 360, cv::Scalar(0, 0, 255), 2);
+        cv::ellipse(currentImageCopy, cv::Point(clampToInt(flyEllipse_.x), clampToInt(flyEllipse_.y)),
+                cv::Size(clampToInt(flyEllipse_.a), clampToInt(flyEllipse_.b)),
+                flyEllipse_.theta * 180.0 / M_PI,
+                0, 360, cv::Scalar(0, 0, 255), 2);
         cv::Point2d head = cv::Point2d(flyEllipse_.x + flyEllipse_.a * std::cos(flyEllipse_.theta),
             			flyEllipse_.y + flyEllipse_.a * std::sin(flyEllipse_.theta));
         cv::drawMarker(currentImageCopy, head, cv::Scalar(255, 0, 0), cv::MARKER_CROSS, 10, 2);
@@ -1060,7 +1060,7 @@ namespace bias
     // returns: mask image
     cv::Mat FlyTrackPlugin::circleROI(double centerX, double centerY, double centerRadius) {
         cv::Mat mask = cv::Mat::zeros(bgMedianImage_.size(), CV_8U);
-        cv::circle(mask, cv::Point(centerX, centerY), centerRadius, cv::Scalar(255), -1);
+        cv::circle(mask, cv::Point(clampToInt(centerX), clampToInt(centerY)), clampToInt(centerRadius), cv::Scalar(255), -1);
         return mask;
     }
 
@@ -1150,7 +1150,7 @@ namespace bias
         cv::cvtColor(colorMatImage, colorMatImage, cv::COLOR_GRAY2BGR);
         switch (config.roiType) {
             case CIRCLE:
-                cv::circle(colorMatImage, cv::Point(config.roiCenterX, config.roiCenterY), config.roiRadius, cv::Scalar(0, 0, 255), 2);
+                cv::circle(colorMatImage, cv::Point(clampToInt(config.roiCenterX), clampToInt(config.roiCenterY)), clampToInt(config.roiRadius), cv::Scalar(0, 0, 255), 2);
 				break;
         }
 
@@ -1389,6 +1389,20 @@ namespace bias
         printf("Done\n");
         fflush(stdout);
         return true;
+    }
+
+    // helper function
+
+    // savely cast a double to a int
+    // in theory, cv::saturated_cast<int>(value) should have done the job, but it didn't work for a very large double
+    int FlyTrackPlugin::clampToInt(double value) {
+        if (value > std::numeric_limits<int>::max()) {
+            return std::numeric_limits<int>::max();
+        }
+        else if (value < std::numeric_limits<int>::min()) {
+            return std::numeric_limits<int>::min();
+        }
+        return static_cast<int>(value);
     }
 
     // OBSOLETE
