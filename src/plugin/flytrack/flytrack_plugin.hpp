@@ -125,6 +125,8 @@ namespace bias
             void logCurrentFrame();
             void finishComputeBgMode();
 
+            int clampToInt(double value);
+
             bool active_;
             bool requireTimer_;
             cv::Mat currentImage_;
