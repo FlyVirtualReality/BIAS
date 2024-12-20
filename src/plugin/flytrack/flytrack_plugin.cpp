@@ -24,14 +24,16 @@ namespace bias
     const unsigned int FlyTrackPlugin::BG_HIST_BIN_SIZE = 1;
     const double FlyTrackPlugin::MIN_VEL_MATCH_DOTPROD = 0.25;
 
-    // ROI detection-related constants
-    //const cv::Rect FlyTrackPlugin::ROI(650, 200, 600, 600); //(x,y,width,height)
+    // ROI detection-related constants    
     const unsigned int FlyTrackPlugin::fish_detect_intensity_threshold = 20;
     const unsigned int FlyTrackPlugin::fish_detect_pixel_threshold = 30;
     const unsigned int FlyTrackPlugin::fish_size_threshold = 30;
-    
-    
 
+    // ROIs near feeders
+    const cv::Rect FlyTrackPlugin::ROI_left(250, 250, 100, 500); //(x,y,width,height)
+    const cv::Rect FlyTrackPlugin::ROI_right(1420, 250, 100, 500); //(x,y,width,height)
+    
+    
     // Public
     // ------------------------------------------------------------------------
 
@@ -78,6 +80,8 @@ namespace bias
 
         bgImageComputed_ = false;
         trigger = false;
+        fishInLeftFeeder = false;
+        fishInRightFeeder = false;
         trigger_pulsed = false;
         has_triggered = true;
         active_ = false;
@@ -184,8 +188,27 @@ namespace bias
         
         // Dummy trigger
         //trigger = !scanFishOutsideROI(isFg_, cv::Rect(config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiHeight));
-        trigger = detectFishInsideROI(isFg_, cv::Rect(config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiHeight));
+        trigger = detectAllFishInsideROI(isFg_, cv::Rect(config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiHeight));        
+        fishInLeftFeeder = detectOneFishInsideROI(isFg_, cv::Rect(FlyTrackPlugin::ROI_left.x, FlyTrackPlugin::ROI_left.y, FlyTrackPlugin::ROI_left.width, FlyTrackPlugin::ROI_left.height));
+        fishInRightFeeder = detectOneFishInsideROI(isFg_, cv::Rect(FlyTrackPlugin::ROI_right.x, FlyTrackPlugin::ROI_right.y, FlyTrackPlugin::ROI_right.width, FlyTrackPlugin::ROI_right.height));
+
+        if (fishInLeftFeeder && fishInRightFeeder) {
+            feederStatus = 3;
+        }
+        else if (fishInLeftFeeder) {
+            feederStatus = 1;
+        }
+        else if (fishInRightFeeder) {
+            feederStatus = 2;
+        }
+        else {
+            feederStatus = 0;
+        }
         //printf("Trigger status: %d\n", trigger);
+        
+        if (fishInRightFeeder || fishInLeftFeeder) {
+            printf("Feeder status: %d\n", feederStatus);
+        }
         
         if (trigger && !trigger_pulsed) {
             trigger_pulsed = true;
@@ -300,6 +323,8 @@ namespace bias
         currentImageCopy = isFg_.clone();
         cv::cvtColor(currentImageCopy, currentImageCopy, cv::COLOR_GRAY2BGR);
         cv::rectangle(currentImageCopy, cv::Rect(config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiHeight), cv::Scalar(0, 0, 255), 2);
+        cv::rectangle(currentImageCopy, cv::Rect(FlyTrackPlugin::ROI_left.x, FlyTrackPlugin::ROI_left.y, FlyTrackPlugin::ROI_left.width, FlyTrackPlugin::ROI_left.height), cv::Scalar(0, 0, 255), 2);
+        cv::rectangle(currentImageCopy, cv::Rect(FlyTrackPlugin::ROI_right.x, FlyTrackPlugin::ROI_right.y, FlyTrackPlugin::ROI_right.width, FlyTrackPlugin::ROI_right.height), cv::Scalar(0, 0, 255), 2);
     }
 
     void FlyTrackPlugin::getCurrentImageComputeBgMode(cv::Mat& currentImageCopy)
@@ -416,6 +441,10 @@ namespace bias
         else if (cmd == QString("reset-fish-trigger")) {
             value = fishStatusToJson(has_triggered);
             has_triggered = false;
+        }
+        else if (cmd == QString("get-feeder-status")) {
+            value = feederStatusToJson(feederStatus);
+
         }
         else if (cmd == QString("pop-back-track"))
         {
@@ -1104,15 +1133,18 @@ namespace bias
         return mask;
     }
 
+    // Create a rectangular mask (boolean), inside is 255, outside is 0
+    // Returns mask
     cv::Mat FlyTrackPlugin::rectangleROI(double centerX, double centerY, double width, double height) {
         cv::Mat mask = cv::Mat::zeros(bgMedianImage_.size(), CV_8U);
         cv::rectangle(mask, cv::Rect(centerX, centerY, width, height), cv::Scalar(255), -1);
         return mask;
     }
 
+
     // void setROI()
     // set the region of interest mask based on roiType_
-    // currently only circle implemented
+    // currently only rectangle is implemented (circle may be implemented too)
 
     void FlyTrackPlugin::setROI(FlyTrackConfig config) {
         if (!bgImageComputed_) return;
@@ -1121,7 +1153,9 @@ namespace bias
         switch (config.roiType) {
         case RECTANGLE:
             printf("setting rectangle ROI: top left corner %f, %f, width %f, height %f\n", config.roiCenterX, config.roiCenterY, config.roiWidth, config.roiHeight);
-            inROI_ = rectangleROI(config.roiCenterX, config.roiCenterY, config.roiWidth, config.roiHeight);
+            inROI_ = rectangleROI(config.roiCenterX, config.roiCenterY, config.roiWidth, config.roiHeight); // Mask for central ROI (detects all fish)
+            inROI_left_ = rectangleROI(FlyTrackPlugin::ROI_left.x, FlyTrackPlugin::ROI_left.y, FlyTrackPlugin::ROI_left.width, FlyTrackPlugin::ROI_left.height); // Mask for ROI at the left feeder
+            inROI_right_ = rectangleROI(FlyTrackPlugin::ROI_right.x, FlyTrackPlugin::ROI_right.y, FlyTrackPlugin::ROI_right.width, FlyTrackPlugin::ROI_right.height); // Mask for ROI at the right feeder
             break;
         }
     }
@@ -1199,9 +1233,9 @@ namespace bias
         switch (config.roiType) {
             case RECTANGLE:
                 //cv::circle(colorMatImage, cv::Point(config.roiCenterX, config.roiCenterY), config.roiRadius, cv::Scalar(0, 0, 255), 2);
-                
                 cv::rectangle(colorMatImage, cv::Rect(config.roiCenterX, config.roiCenterY, config.roiWidth, config.roiHeight) , cv::Scalar(0, 0, 255), 2);
-                
+                cv::rectangle(colorMatImage, cv::Rect(FlyTrackPlugin::ROI_left.x, FlyTrackPlugin::ROI_left.y, FlyTrackPlugin::ROI_left.width, FlyTrackPlugin::ROI_left.height), cv::Scalar(0, 0, 255), 2);
+                cv::rectangle(colorMatImage, cv::Rect(FlyTrackPlugin::ROI_right.x, FlyTrackPlugin::ROI_right.y, FlyTrackPlugin::ROI_right.width, FlyTrackPlugin::ROI_right.height), cv::Scalar(0, 0, 255), 2);
 				break;
         }
 
@@ -1562,7 +1596,36 @@ namespace bias
     // flyEllipse: destination for ellipse parameters
 
 
-    bool FlyTrackPlugin::detectFishInsideROI(cv::Mat& isFg, cv::Rect ROI) {
+    bool FlyTrackPlugin::detectOneFishInsideROI(cv::Mat& isFg, cv::Rect ROI) {
+        cv::Mat mask = cv::Mat::zeros(isFg.size(), CV_8U);
+        cv::rectangle(mask, ROI, cv::Scalar(255), cv::FILLED);
+        cv::Mat masked_image;
+        isFg.copyTo(masked_image, mask);
+        cv::Mat binary_image;
+        cv::threshold(masked_image, binary_image, fish_detect_intensity_threshold, 255, cv::THRESH_BINARY);
+
+        unsigned int n_fish_inside_roi = 0;
+        std::vector<std::vector<cv::Point>> contours;
+        cv::findContours(masked_image, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+        for (int i = 0; i < contours.size(); i++) {
+            cv::Moments mu = cv::moments(contours[i], false);
+
+            //Area 
+            double area = cv::contourArea(contours[i]);
+
+            if (area > fish_detect_pixel_threshold) {
+                //Calculate centroid
+                // cv::Point2f centroid(mu.m10 / mu.m00, mu.m01 / mu.m00); Not needed right now
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+
+    bool FlyTrackPlugin::detectAllFishInsideROI(cv::Mat& isFg, cv::Rect ROI) {
         cv::Mat mask = cv::Mat::zeros(isFg.size(), CV_8U);
         cv::rectangle(mask, ROI, cv::Scalar(255), cv::FILLED);
         cv::Mat masked_image;
@@ -1659,4 +1722,18 @@ namespace bias
         return json;
     }
 
+    QString feederStatusToJson(unsigned int feederStatus) {
+        // 1: left feeder, 2: right feeder, 3: both feeders, 0: no feeder
+        QString json = QString("{");
+        json += QString("\"trigger\": %1").arg(feederStatus);
+        json += QString("}");
+        return json;
+    }
+
+    QString ROIToJson(bool trigger) {
+        QString json = QString("{");
+        json += QString("\"trigger\": %1").arg(trigger);
+        json += QString("}");
+        return json;
+    }
 }
