@@ -24,7 +24,6 @@ namespace bias
     {
 
         public:
-
             // default parameters
             static const QString DEFAULT_BG_IMAGE_FILE_PATH; // saved background median estimate
             static const QString DEFAULT_TMP_OUT_DIR; // temporary output directory
@@ -58,6 +57,14 @@ namespace bias
             double roiCenterY; // y-coordinate of ROI center
             double roiWidth; // radius of ROI
             double roiHeight;
+			double roiLeftFeederCenterX; // x-coordinate of left feeder ROI center
+			double roiLeftFeederCenterY; // y-coordinate of left feeder ROI center
+			double roiLeftFeederWidth; // radius of left feeder ROI
+			double roiLeftFeederHeight; // radius of left feeder ROI
+			double roiRightFeederCenterX; // x-coordinate of right feeder ROI center
+			double roiRightFeederCenterY; // y-coordinate of right feeder ROI center
+			double roiRightFeederWidth; // radius of right feeder ROI
+			double roiRightFeederHeight; // radius of right feeder ROI
             int historyBufferLength; // number of frames to buffer velocity, orientation
             int maxTrackQueueLength; // number of tracks to buffer
             double minVelocityMagnitude; // minimum velocity magnitude in pixels/frame to consider fly moving
@@ -68,7 +75,7 @@ namespace bias
 
             FlyTrackConfig();
             FlyTrackConfig FlyTrackConfig::copy();
-            void setRoiParams(ROIType roiTypeNew, double roiCenterXNew, double roiCenterYNew, double roiWidthNew, double roiHeightNew);
+			void setRoiParams(ROIType roiTypeNew, double roiCenterXNew, double roiCenterYNew, double roiWidthNew, double roiHeightNew, double roiLeftFeederCenterXNew, double roiLeftFeederCenterYNew, double roiLeftFeederWidthNew, double roiLeftFeederHeightNew, double roiRightFeederCenterXNew, double roiRightFeederCenterYNew, double roiRightFeederWidthNew, double roiRightFeederHeightNew);
 
             RtnStatus setBgEstFromMap(QVariantMap configMap);
             RtnStatus setRoiFromMap(QVariantMap configMap);

@@ -30,8 +30,8 @@ namespace bias
     const unsigned int FlyTrackPlugin::fish_size_threshold = 30;
 
     // ROIs near feeders
-    const cv::Rect FlyTrackPlugin::ROI_left(250, 250, 100, 500); //(x,y,width,height)
-    const cv::Rect FlyTrackPlugin::ROI_right(1420, 250, 100, 500); //(x,y,width,height)
+    const cv::Rect FlyTrackPlugin::ROI_left(90, 60, 300, 240); //(x,y,width,height)
+    const cv::Rect FlyTrackPlugin::ROI_right(1440, 690, 300, 240); //(x,y,width,height)
     
     
     // Public
@@ -189,9 +189,13 @@ namespace bias
         // Dummy trigger
         //trigger = !scanFishOutsideROI(isFg_, cv::Rect(config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiHeight));
         trigger = detectAllFishInsideROI(isFg_, cv::Rect(config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiHeight));        
-        fishInLeftFeeder = detectOneFishInsideROI(isFg_, cv::Rect(FlyTrackPlugin::ROI_left.x, FlyTrackPlugin::ROI_left.y, FlyTrackPlugin::ROI_left.width, FlyTrackPlugin::ROI_left.height));
-        fishInRightFeeder = detectOneFishInsideROI(isFg_, cv::Rect(FlyTrackPlugin::ROI_right.x, FlyTrackPlugin::ROI_right.y, FlyTrackPlugin::ROI_right.width, FlyTrackPlugin::ROI_right.height));
+        fishInLeftFeeder = detectOneFishInsideROI(isFg_, cv::Rect(config_.roiLeftFeederCenterX, config_.roiLeftFeederCenterY, config_.roiLeftFeederWidth, config_.roiLeftFeederHeight));
+        fishInRightFeeder = detectOneFishInsideROI(isFg_, cv::Rect(config_.roiRightFeederCenterX, config_.roiRightFeederCenterY, config_.roiRightFeederWidth, config_.roiRightFeederHeight));
 
+        // The two commented lines below test a hard-coded version of the feeder rois
+        //fishInLeftFeeder = detectOneFishInsideROI(isFg_, cv::Rect(FlyTrackPlugin::ROI_left.x, FlyTrackPlugin::ROI_left.y, FlyTrackPlugin::ROI_left.width, FlyTrackPlugin::ROI_left.height));
+        //fishInRightFeeder = detectOneFishInsideROI(isFg_, cv::Rect(FlyTrackPlugin::ROI_right.x, FlyTrackPlugin::ROI_right.y, FlyTrackPlugin::ROI_right.width, FlyTrackPlugin::ROI_right.height));
+        
         if (fishInLeftFeeder && fishInRightFeeder) {
             feederStatus = 3;
         }
@@ -323,8 +327,8 @@ namespace bias
         currentImageCopy = isFg_.clone();
         cv::cvtColor(currentImageCopy, currentImageCopy, cv::COLOR_GRAY2BGR);
         cv::rectangle(currentImageCopy, cv::Rect(config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiHeight), cv::Scalar(0, 0, 255), 2);
-        cv::rectangle(currentImageCopy, cv::Rect(FlyTrackPlugin::ROI_left.x, FlyTrackPlugin::ROI_left.y, FlyTrackPlugin::ROI_left.width, FlyTrackPlugin::ROI_left.height), cv::Scalar(0, 0, 255), 2);
-        cv::rectangle(currentImageCopy, cv::Rect(FlyTrackPlugin::ROI_right.x, FlyTrackPlugin::ROI_right.y, FlyTrackPlugin::ROI_right.width, FlyTrackPlugin::ROI_right.height), cv::Scalar(0, 0, 255), 2);
+        cv::rectangle(currentImageCopy, cv::Rect(config_.roiLeftFeederCenterX, config_.roiLeftFeederCenterY, config_.roiLeftFeederWidth, config_.roiLeftFeederHeight), cv::Scalar(255, 0, 0), 2);
+        cv::rectangle(currentImageCopy, cv::Rect(config_.roiRightFeederCenterX, config_.roiRightFeederCenterY, config_.roiRightFeederWidth, config_.roiRightFeederHeight), cv::Scalar(255, 0, 0), 2);
     }
 
     void FlyTrackPlugin::getCurrentImageComputeBgMode(cv::Mat& currentImageCopy)
@@ -570,18 +574,25 @@ namespace bias
     }
 
     void FlyTrackPlugin::setRoiUIValues() {
+		// This is where the ROI values in the GUI are set to the values in the config file
         roiTypeComboBox->setCurrentIndex(config_.roiType);
         roiCenterXSpinBox->setValue(config_.roiCenterX);
         roiCenterYSpinBox->setValue(config_.roiCenterY);
         roiWidthSpinBox->setValue(config_.roiWidth);
         roiHeightSpinBox->setValue(config_.roiHeight);
-
+        roiLeftFeederWidthSpinBox->setValue(config_.roiLeftFeederWidth);
+        roiLeftFeederHeightSpinBox->setValue(config_.roiLeftFeederHeight);
+		roiRightFeederWidthSpinBox->setValue(config_.roiRightFeederWidth);
+		roiRightFeederHeightSpinBox->setValue(config_.roiRightFeederHeight);
 
         roiCenterXSpinBox->setEnabled(true);
         roiCenterYSpinBox->setEnabled(true);
         roiWidthSpinBox->setEnabled(true);
         roiHeightSpinBox->setEnabled(true);
-		
+        roiLeftFeederCenterXSpinBox->setValue(config_.roiLeftFeederCenterX);
+        roiLeftFeederCenterYSpinBox->setValue(config_.roiLeftFeederCenterY);
+        roiRightFeederCenterXSpinBox->setValue(config_.roiRightFeederCenterX);
+        roiRightFeederCenterYSpinBox->setValue(config_.roiRightFeederCenterY);
 
     }
 
@@ -888,7 +899,15 @@ namespace bias
         double roiCenterY = roiCenterYSpinBox->value();
         double roiWidth = roiWidthSpinBox->value();
         double roiHeight = roiHeightSpinBox->value();
-        config.setRoiParams(roiType, roiCenterX, roiCenterY, roiWidth, roiHeight);
+		double roiLeftFeederCenterX = roiLeftFeederCenterXSpinBox->value();
+		double roiLeftFeederCenterY = roiLeftFeederCenterYSpinBox->value();
+		double roiLeftFeederWidth = roiLeftFeederWidthSpinBox->value();
+		double roiLeftFeederHeight = roiLeftFeederHeightSpinBox->value();
+		double roiRightFeederCenterX = roiRightFeederCenterXSpinBox->value();
+		double roiRightFeederCenterY = roiRightFeederCenterYSpinBox->value();
+		double roiRightFeederWidth = roiRightFeederWidthSpinBox->value();
+		double roiRightFeederHeight = roiRightFeederHeightSpinBox->value();
+		config.setRoiParams(roiType, roiCenterX, roiCenterY, roiWidth, roiHeight, roiLeftFeederCenterX, roiLeftFeederCenterY, roiLeftFeederWidth, roiLeftFeederHeight, roiRightFeederCenterX, roiRightFeederCenterY, roiRightFeederWidth, roiRightFeederHeight);
     }
 
     void FlyTrackPlugin::getUiBgEstValues(FlyTrackConfig& config) {
@@ -945,6 +964,23 @@ namespace bias
                 roiWidthLabel->setEnabled(!v);
                 roiHeightSpinBox->setEnabled(!v);
                 roiHeightLabel->setEnabled(!v);
+                roiLeftFeederCenterXSpinBox->setEnabled(!v);
+				roiLeftFeederCenterXLabel->setEnabled(!v);
+				roiLeftFeederCenterYSpinBox->setEnabled(!v);
+				roiLeftFeederCenterYLabel->setEnabled(!v);
+				roiRightFeederCenterXSpinBox->setEnabled(!v);
+				roiRightFeederCenterXLabel->setEnabled(!v);
+				roiLeftFeederWidthLabel->setEnabled(!v);
+				roiLeftFeederWidthSpinBox->setEnabled(!v);
+				roiLeftFeederHeightLabel->setEnabled(!v);
+				roiLeftFeederHeightSpinBox->setEnabled(!v);
+				roiRightFeederCenterYSpinBox->setEnabled(!v);
+				roiRightFeederCenterYLabel->setEnabled(!v);
+				roiRightFeederWidthLabel->setEnabled(!v);
+				roiRightFeederWidthSpinBox->setEnabled(!v);
+				roiRightFeederHeightLabel->setEnabled(!v); 
+				roiRightFeederHeightSpinBox->setEnabled(!v);
+				
                 break;
         }
 		tmpOutDirLineEdit->setEnabled(true);
@@ -1154,8 +1190,8 @@ namespace bias
         case RECTANGLE:
             printf("setting rectangle ROI: top left corner %f, %f, width %f, height %f\n", config.roiCenterX, config.roiCenterY, config.roiWidth, config.roiHeight);
             inROI_ = rectangleROI(config.roiCenterX, config.roiCenterY, config.roiWidth, config.roiHeight); // Mask for central ROI (detects all fish)
-            inROI_left_ = rectangleROI(FlyTrackPlugin::ROI_left.x, FlyTrackPlugin::ROI_left.y, FlyTrackPlugin::ROI_left.width, FlyTrackPlugin::ROI_left.height); // Mask for ROI at the left feeder
-            inROI_right_ = rectangleROI(FlyTrackPlugin::ROI_right.x, FlyTrackPlugin::ROI_right.y, FlyTrackPlugin::ROI_right.width, FlyTrackPlugin::ROI_right.height); // Mask for ROI at the right feeder
+            inROI_left_ = rectangleROI(config_.roiLeftFeederCenterX, config_.roiLeftFeederCenterY, config_.roiLeftFeederWidth, config_.roiLeftFeederHeight); // Mask for ROI at the left feeder
+            inROI_right_ = rectangleROI(config_.roiRightFeederCenterX, config_.roiRightFeederCenterY, config_.roiRightFeederWidth, config_.roiRightFeederHeight); // Mask for ROI at the right feeder
             break;
         }
     }
@@ -1234,8 +1270,8 @@ namespace bias
             case RECTANGLE:
                 //cv::circle(colorMatImage, cv::Point(config.roiCenterX, config.roiCenterY), config.roiRadius, cv::Scalar(0, 0, 255), 2);
                 cv::rectangle(colorMatImage, cv::Rect(config.roiCenterX, config.roiCenterY, config.roiWidth, config.roiHeight) , cv::Scalar(0, 0, 255), 2);
-                cv::rectangle(colorMatImage, cv::Rect(FlyTrackPlugin::ROI_left.x, FlyTrackPlugin::ROI_left.y, FlyTrackPlugin::ROI_left.width, FlyTrackPlugin::ROI_left.height), cv::Scalar(0, 0, 255), 2);
-                cv::rectangle(colorMatImage, cv::Rect(FlyTrackPlugin::ROI_right.x, FlyTrackPlugin::ROI_right.y, FlyTrackPlugin::ROI_right.width, FlyTrackPlugin::ROI_right.height), cv::Scalar(0, 0, 255), 2);
+                cv::rectangle(colorMatImage, cv::Rect(config.roiLeftFeederCenterX, config.roiLeftFeederCenterY, config.roiLeftFeederWidth, config.roiLeftFeederHeight), cv::Scalar(0, 0, 255), 2);
+                cv::rectangle(colorMatImage, cv::Rect(config.roiRightFeederCenterX, config.roiRightFeederCenterY, config.roiRightFeederWidth, config.roiRightFeederHeight), cv::Scalar(0, 0, 255), 2);
 				break;
         }
 
@@ -1725,7 +1761,7 @@ namespace bias
     QString feederStatusToJson(unsigned int feederStatus) {
         // 1: left feeder, 2: right feeder, 3: both feeders, 0: no feeder
         QString json = QString("{");
-        json += QString("\"trigger\": %1").arg(feederStatus);
+        json += QString("\"feeder\": %1").arg(feederStatus);
         json += QString("}");
         return json;
     }

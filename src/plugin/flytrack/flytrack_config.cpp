@@ -15,57 +15,65 @@ namespace bias
     const FlyVsBgModeType FlyTrackConfig::DEFAULT_FLY_VS_BG_MODE = FLY_DARKER_THAN_BG; // whether the fly is darker than the background
     const ROIType FlyTrackConfig::DEFAULT_ROI_TYPE = RECTANGLE; // type of ROI
     const int FlyTrackConfig::DEFAULT_HISTORY_BUFFER_LENGTH = 5; // number of frames to buffer velocity, orientation
-	const int FlyTrackConfig::DEFAULT_MAX_TRACK_QUEUE_LENGTH = 10000; // maximum number of track frames to buffer
+    const int FlyTrackConfig::DEFAULT_MAX_TRACK_QUEUE_LENGTH = 10000; // maximum number of track frames to buffer
     const double FlyTrackConfig::DEFAULT_MIN_VELOCITY_MAGNITUDE = 1.0; // minimum velocity magnitude in pixels/frame to consider fly moving
     const double FlyTrackConfig::DEFAULT_HEAD_TAIL_WEIGHT_VELOCITY = 3.0; // weight of velocity dot product in head-tail orientation resolution
     const double FlyTrackConfig::DEFAULT_MIN_VEL_MATCH_DOTPROD = 0.25; // minimum dot product for velocity matching
     const bool FlyTrackConfig::DEFAULT_DEBUG = false; // flag for debugging
     const bool FlyTrackConfig::DEFAULT_COMPUTE_BG_MODE = false; // flag of whether to compute the background (true) when camera is running or track a fly (false)
 
-	FlyTrackConfig::FlyTrackConfig()
+    FlyTrackConfig::FlyTrackConfig()
     {
         computeBgMode = DEFAULT_COMPUTE_BG_MODE;
         bgImageFilePath = DEFAULT_BG_IMAGE_FILE_PATH;
         tmpOutDir = DEFAULT_TMP_OUT_DIR;
-		backgroundThreshold = DEFAULT_BACKGROUND_THRESHOLD;
+        backgroundThreshold = DEFAULT_BACKGROUND_THRESHOLD;
         nFramesSkipBgEst = DEFAULT_N_FRAMES_SKIP_BG_EST;
-		flyVsBgMode = DEFAULT_FLY_VS_BG_MODE;
-		roiType = DEFAULT_ROI_TYPE;
-		historyBufferLength = DEFAULT_HISTORY_BUFFER_LENGTH;
-		maxTrackQueueLength = DEFAULT_MAX_TRACK_QUEUE_LENGTH;
-		minVelocityMagnitude = DEFAULT_MIN_VELOCITY_MAGNITUDE;
-		headTailWeightVelocity = DEFAULT_HEAD_TAIL_WEIGHT_VELOCITY;
-		DEBUG = DEFAULT_DEBUG;
-		roiCenterX = 100;
-		roiCenterY = 100;
-		roiWidth = 100;
-        roiHeight = 100;
+        flyVsBgMode = DEFAULT_FLY_VS_BG_MODE;
+        roiType = DEFAULT_ROI_TYPE;
+        historyBufferLength = DEFAULT_HISTORY_BUFFER_LENGTH;
+        maxTrackQueueLength = DEFAULT_MAX_TRACK_QUEUE_LENGTH;
+        minVelocityMagnitude = DEFAULT_MIN_VELOCITY_MAGNITUDE;
+        headTailWeightVelocity = DEFAULT_HEAD_TAIL_WEIGHT_VELOCITY;
+        DEBUG = DEFAULT_DEBUG;
+        roiCenterX = 100; // Add this to defaults
+        roiCenterY = 100; // Add this to defaults
+        roiWidth = 100; // Add this to defaults
+        roiHeight = 100; // Add this to defaults
+        roiLeftFeederCenterX = 100; // Add this to defaults
+        roiLeftFeederCenterY = 100; // Add this to defaults
+        roiLeftFeederWidth = 100; // Add this to defaults
+        roiLeftFeederHeight = 100; // Add this to defaults
+        roiRightFeederCenterX = 100; // Add this to defaults
+        roiRightFeederCenterY = 100; // Add this to defaults
+        roiRightFeederWidth = 100; // Add this to defaults
+        roiRightFeederHeight = 100; // Add this to defaults
         trackFileName = QString(""); // empty string means it is not set
         tmpTrackFilePath = QString(""); // empty string means it is not set
-	}
+    }
 
     FlyTrackConfig FlyTrackConfig::copy() {
-    	FlyTrackConfig config;
+        FlyTrackConfig config;
         config.computeBgMode = computeBgMode;
-		config.bgImageFilePath = bgImageFilePath;
-		config.tmpOutDir = tmpOutDir;
-		config.backgroundThreshold = backgroundThreshold;
+        config.bgImageFilePath = bgImageFilePath;
+        config.tmpOutDir = tmpOutDir;
+        config.backgroundThreshold = backgroundThreshold;
         config.nFramesSkipBgEst = nFramesSkipBgEst;
-		config.flyVsBgMode = flyVsBgMode;
-		config.roiType = roiType;
-		config.historyBufferLength = historyBufferLength;
-		config.maxTrackQueueLength = maxTrackQueueLength;
-		config.minVelocityMagnitude = minVelocityMagnitude;
-		config.headTailWeightVelocity = headTailWeightVelocity;
-		config.DEBUG = DEBUG;
-		config.roiCenterX = roiCenterX;
-		config.roiCenterY = roiCenterY;
-		config.roiWidth = roiWidth;
+        config.flyVsBgMode = flyVsBgMode;
+        config.roiType = roiType;
+        config.historyBufferLength = historyBufferLength;
+        config.maxTrackQueueLength = maxTrackQueueLength;
+        config.minVelocityMagnitude = minVelocityMagnitude;
+        config.headTailWeightVelocity = headTailWeightVelocity;
+        config.DEBUG = DEBUG;
+        config.roiCenterX = roiCenterX;
+        config.roiCenterY = roiCenterY;
+        config.roiWidth = roiWidth;
         config.roiHeight = roiHeight;
         config.trackFileName = trackFileName;
         config.tmpTrackFilePath = tmpTrackFilePath;
-		return config;
-	
+        return config;
+
     }
 
     QString FlyTrackConfig::toString() {
@@ -85,6 +93,14 @@ namespace bias
         configStr += QString("roiCenterY: %1\n").arg(roiCenterY);
         configStr += QString("roiWidth: %1\n").arg(roiWidth);
         configStr += QString("roiHeight: %1\n").arg(roiHeight);
+        configStr += QString("roiLeftFeederCenterX: %1\n").arg(roiLeftFeederCenterX);
+        configStr += QString("roiLeftFeederCenterY: %1\n").arg(roiLeftFeederCenterY);
+        configStr += QString("roiRightFeederCenterX: %1\n").arg(roiRightFeederCenterX);
+        configStr += QString("roiRightFeederCenterY: %1\n").arg(roiRightFeederCenterY);
+        configStr += QString("roiLeftFeederWidth: %1\n").arg(roiLeftFeederWidth);
+        configStr += QString("roiLeftFeederHeight: %1\n").arg(roiLeftFeederHeight);
+        configStr += QString("roiRightFeederWidth: %1\n").arg(roiRightFeederWidth);
+        configStr += QString("roiRightFeederHeight: %1\n").arg(roiRightFeederHeight);
         configStr += QString("historyBufferLength: %1\n").arg(historyBufferLength);
         configStr += QString("maxTrackQueueLength: %1\n").arg(maxTrackQueueLength);
         configStr += QString("minVelocityMagnitude: %1\n").arg(minVelocityMagnitude);
@@ -95,13 +111,13 @@ namespace bias
     }
 
     void FlyTrackConfig::print() {
-		std::cout << toString().toStdString();
-	}
+        std::cout << toString().toStdString();
+    }
 
     bool FlyTrackConfig::trackFilePathSet() {
-  		return !tmpTrackFilePath.isEmpty();
+        return !tmpTrackFilePath.isEmpty();
     }
-    bool FlyTrackConfig::trackFileNameSet(){
+    bool FlyTrackConfig::trackFileNameSet() {
         return !trackFileName.isEmpty();
     }
 
@@ -129,8 +145,8 @@ namespace bias
     }
 
     RtnStatus FlyTrackConfig::setBgEstFromMap(QVariantMap configMap) {
-		RtnStatus rtnStatus;
-		rtnStatus.success = true;
+        RtnStatus rtnStatus;
+        rtnStatus.success = true;
         rtnStatus.message = QString("");
 
         if (configMap.isEmpty())
@@ -139,13 +155,13 @@ namespace bias
             return rtnStatus;
         }
         if (configMap.contains("computeBgMode")) {
-			if (configMap["computeBgMode"].canConvert<bool>())
-				computeBgMode = configMap["computeBgMode"].toBool();
+            if (configMap["computeBgMode"].canConvert<bool>())
+                computeBgMode = configMap["computeBgMode"].toBool();
             else {
-				rtnStatus.success = false;
-				rtnStatus.appendMessage("unable to convert computeBgMode to bool");
-			}
-		}
+                rtnStatus.success = false;
+                rtnStatus.appendMessage("unable to convert computeBgMode to bool");
+            }
+        }
         if (configMap.contains("bgImageFilePath")) {
             if (configMap["bgImageFilePath"].canConvert<QString>())
                 bgImageFilePath = configMap["bgImageFilePath"].toString();
@@ -162,34 +178,34 @@ namespace bias
                 rtnStatus.appendMessage("unable to convert nFramesSkipBgEst to int");
             }
         }
-		return rtnStatus;
-	}
+        return rtnStatus;
+    }
 
     RtnStatus FlyTrackConfig::setRoiFromMap(QVariantMap configMap) {
-		RtnStatus rtnStatus;
-		rtnStatus.success = true;
-		rtnStatus.message = QString("");
+        RtnStatus rtnStatus;
+        rtnStatus.success = true;
+        rtnStatus.message = QString("");
 
         if (configMap.isEmpty())
         {
-			rtnStatus.message = QString("flyTrack roi config empty");
-			return rtnStatus;
-		}
+            rtnStatus.message = QString("flyTrack roi config empty");
+            return rtnStatus;
+        }
 
         if (configMap.contains("roiType")) {
             if (configMap["roiType"].canConvert<QString>()) {
                 QString roiTypeStr = configMap["roiType"].toString();
                 bool success = roiTypeFromString(roiTypeStr, roiType);
-                if(!success) {
+                if (!success) {
                     rtnStatus.success = false;
                     rtnStatus.appendMessage(QString("unknown roiType %1").arg(roiTypeStr));
                 }
             }
             else {
-				rtnStatus.success = false;
-				rtnStatus.appendMessage("unable to convert roiType to string");
-			}
-		}
+                rtnStatus.success = false;
+                rtnStatus.appendMessage("unable to convert roiType to string");
+            }
+        }
 
         if (configMap.contains("roiCenterX")) {
             if (configMap["roiCenterX"].canConvert<double>()) {
@@ -240,58 +256,139 @@ namespace bias
                 rtnStatus.appendMessage(QString("unable to convert roiHeight to double"));
             }
         }
-		return rtnStatus;
-	}   
+
+        if (configMap.contains("roiLeftFeederCenterX")) {
+            if (configMap["roiLeftFeederCenterX"].canConvert<double>()) {
+                roiLeftFeederCenterX = configMap["roiLeftFeederCenterX"].toDouble();
+            }
+            else {
+                rtnStatus.success = false;
+                rtnStatus.appendMessage(QString("unable to convert roiLeftFeederCenterX to double"));
+            }
+        }
+
+        if (configMap.contains("roiLeftFeederCenterY")) {
+            if (configMap["roiLeftFeederCenterY"].canConvert<double>()) {
+                roiLeftFeederCenterY = configMap["roiLeftFeederCenterY"].toDouble();
+            }
+            else {
+                rtnStatus.success = false;
+                rtnStatus.appendMessage(QString("unable to convert roiLeftFeederCenterY to double"));
+            }
+        }
+
+        if (configMap.contains("roiLeftFeederWidth")) {
+            if (configMap["roiLeftFeederWidth"].canConvert<double>()) {
+                roiLeftFeederWidth = configMap["roiLeftFeederWidth"].toDouble();
+            }
+            else {
+                rtnStatus.success = false;
+                rtnStatus.appendMessage(QString("unable to convert roiLeftFeederWidth to double"));
+            }
+        }
+
+        if (configMap.contains("roiLeftFeederHeight")) {
+            if (configMap["roiLeftFeederHeight"].canConvert<double>()) {
+                roiLeftFeederHeight = configMap["roiLeftFeederHeight"].toDouble();
+            }
+            else {
+                rtnStatus.success = false;
+                rtnStatus.appendMessage(QString("unable to convert roiLeftFeederHeight to double"));
+            }
+        }
+
+        if (configMap.contains("roiRightFeederCenterX")) {
+            if (configMap["roiRightFeederCenterX"].canConvert<double>()) {
+                roiRightFeederCenterX = configMap["roiRightFeederCenterX"].toDouble();
+            }
+            else {
+                rtnStatus.success = false;
+                rtnStatus.appendMessage(QString("unable to convert roiRightFeederCenterX to double"));
+            }
+        }
+
+        if (configMap.contains("roiRightFeederCenterY")) {
+            if (configMap["roiRightFeederCenterY"].canConvert<double>()) {
+                roiRightFeederCenterY = configMap["roiRightFeederCenterY"].toDouble();
+            }
+            else {
+                rtnStatus.success = false;
+                rtnStatus.appendMessage(QString("unable to convert roiRightFeederCenterY to double"));
+            }
+        }
+
+        if (configMap.contains("roiRightFeederWidth")) {
+            if (configMap["roiRightFeederWidth"].canConvert<double>()) {
+                roiRightFeederWidth = configMap["roiRightFeederWidth"].toDouble();
+            }
+            else {
+                rtnStatus.success = false;
+                rtnStatus.appendMessage(QString("unable to convert roiRightFeederWidth to double"));
+            }
+        }
+
+        if (configMap.contains("roiRightFeederHeight")) {
+            if (configMap["roiRightFeederHeight"].canConvert<double>()) {
+                roiRightFeederHeight = configMap["roiRightFeederHeight"].toDouble();
+            }
+            else {
+                rtnStatus.success = false;
+                rtnStatus.appendMessage(QString("unable to convert roiRightFeederHeight to double"));
+            }
+        }
+
+        return rtnStatus;
+    }
 
     RtnStatus FlyTrackConfig::setBgSubFromMap(QVariantMap configMap) {
 
         RtnStatus rtnStatus;
-		rtnStatus.success = true;
-		rtnStatus.message = QString("");
+        rtnStatus.success = true;
+        rtnStatus.message = QString("");
 
         if (configMap.isEmpty())
         {
-			rtnStatus.message = QString("flyTrack bgSub config empty");
-			return rtnStatus;
-		}
+            rtnStatus.message = QString("flyTrack bgSub config empty");
+            return rtnStatus;
+        }
 
         if (configMap.contains("backgroundThreshold")) {
-			if(configMap["backgroundThreshold"].canConvert<int>()) 
+            if (configMap["backgroundThreshold"].canConvert<int>())
                 backgroundThreshold = configMap["backgroundThreshold"].toInt();
             else {
-				rtnStatus.success = false;
-				rtnStatus.appendMessage("unable to convert backgroundThreshold to int");
-			}
-		}
+                rtnStatus.success = false;
+                rtnStatus.appendMessage("unable to convert backgroundThreshold to int");
+            }
+        }
         if (configMap.contains("flyVsBgMode")) {
             if (configMap["flyVsBgMode"].canConvert<QString>()) {
-				QString flyVsBgModeStr = configMap["flyVsBgMode"].toString();
-				if (flyVsBgModeStr == "FLY_DARKER_THAN_BG") flyVsBgMode = FLY_DARKER_THAN_BG;
-				else if (flyVsBgModeStr == "FLY_BRIGHTER_THAN_BG") flyVsBgMode = FLY_BRIGHTER_THAN_BG;
+                QString flyVsBgModeStr = configMap["flyVsBgMode"].toString();
+                if (flyVsBgModeStr == "FLY_DARKER_THAN_BG") flyVsBgMode = FLY_DARKER_THAN_BG;
+                else if (flyVsBgModeStr == "FLY_BRIGHTER_THAN_BG") flyVsBgMode = FLY_BRIGHTER_THAN_BG;
                 else if (flyVsBgModeStr == "FLY_ANY_DIFFERENCE_BG") flyVsBgMode = FLY_ANY_DIFFERENCE_BG;
                 else {
-					rtnStatus.success = false;
-					rtnStatus.appendMessage("unable to parse flyVsBgMode");
-				}
-			}
+                    rtnStatus.success = false;
+                    rtnStatus.appendMessage("unable to parse flyVsBgMode");
+                }
+            }
             else {
-				rtnStatus.success = false;
-				rtnStatus.appendMessage("unable to convert flyVsBgMode to string");
-			}
-		}
-		return rtnStatus;
-	
+                rtnStatus.success = false;
+                rtnStatus.appendMessage("unable to convert flyVsBgMode to string");
+            }
+        }
+        return rtnStatus;
+
     }
 
     RtnStatus FlyTrackConfig::setHeadTailFromMap(QVariantMap configMap) {
-		RtnStatus rtnStatus;
+        RtnStatus rtnStatus;
         rtnStatus.success = true;
         rtnStatus.message = QString("");
         if (configMap.isEmpty())
         {
-			rtnStatus.message = QString("flyTrack headTail config empty");
-			return rtnStatus;
-		}
+            rtnStatus.message = QString("flyTrack headTail config empty");
+            return rtnStatus;
+        }
         if (configMap.contains("historyBufferLength")) {
             if (configMap["historyBufferLength"].canConvert<int>())
                 historyBufferLength = configMap["historyBufferLength"].toInt();
@@ -328,14 +425,14 @@ namespace bias
     }
 
     RtnStatus FlyTrackConfig::setMiscFromMap(QVariantMap configMap) {
-		RtnStatus rtnStatus;
-		rtnStatus.success = true;
-		rtnStatus.message = QString("");
+        RtnStatus rtnStatus;
+        rtnStatus.success = true;
+        rtnStatus.message = QString("");
         if (configMap.isEmpty())
         {
-			rtnStatus.message = QString("flyTrack misc config empty");
-			return rtnStatus;
-		}
+            rtnStatus.message = QString("flyTrack misc config empty");
+            return rtnStatus;
+        }
         if (configMap.contains("DEBUG")) {
             if (configMap["DEBUG"].canConvert<bool>())
                 DEBUG = configMap["DEBUG"].toBool();
@@ -345,21 +442,21 @@ namespace bias
             }
         }
         if (configMap.contains("tmpOutDir")) {
-			if (configMap["tmpOutDir"].canConvert<QString>())
-				tmpOutDir = configMap["tmpOutDir"].toString();
+            if (configMap["tmpOutDir"].canConvert<QString>())
+                tmpOutDir = configMap["tmpOutDir"].toString();
             else {
-				rtnStatus.success = false;
-				rtnStatus.appendMessage("unable to convert tmpOutDir to string");
-			}
-		}
+                rtnStatus.success = false;
+                rtnStatus.appendMessage("unable to convert tmpOutDir to string");
+            }
+        }
         if (configMap.contains("trackFileName")) {
-			if (configMap["trackFileName"].canConvert<QString>())
-				trackFileName = configMap["trackFileName"].toString();
+            if (configMap["trackFileName"].canConvert<QString>())
+                trackFileName = configMap["trackFileName"].toString();
             else {
-				rtnStatus.success = false;
-				rtnStatus.appendMessage("unable to convert trackFileName to string");
-			}
-		} 
+                rtnStatus.success = false;
+                rtnStatus.appendMessage("unable to convert trackFileName to string");
+            }
+        }
         return rtnStatus;
     }
 
@@ -381,6 +478,14 @@ namespace bias
         roiMap.insert("roiCenterY", roiCenterY);
         roiMap.insert("roiWidth", roiWidth);
         roiMap.insert("roiHeight", roiHeight);
+        roiMap.insert("roiLeftFeederCenterX", roiLeftFeederCenterX);
+        roiMap.insert("roiLeftFeederCenterY", roiLeftFeederCenterY);
+        roiMap.insert("roiLeftFeederWidth", roiLeftFeederWidth);
+        roiMap.insert("roiLeftFeederHeight", roiLeftFeederHeight);
+        roiMap.insert("roiRightFeederCenterX", roiRightFeederCenterX);
+        roiMap.insert("roiRightFeederCenterY", roiRightFeederCenterY);
+        roiMap.insert("roiRightFeederWidth", roiRightFeederWidth);
+        roiMap.insert("roiRightFeederHeight", roiRightFeederHeight);
 
         QVariantMap bgSubMap;
         bgSubMap.insert("backgroundThreshold", backgroundThreshold);
@@ -399,13 +504,13 @@ namespace bias
         miscMap.insert("tmpOutDir", tmpOutDir);
         miscMap.insert("trackFileName", trackFileName);
 
-		configMap.insert("bgEst", bgEstMap);
+        configMap.insert("bgEst", bgEstMap);
         configMap.insert("roi", roiMap);
         configMap.insert("bgSub", bgSubMap);
         configMap.insert("headTail", headTailMap);
         configMap.insert("misc", miscMap);
 
-        fprintf(stderr,"Done with FlyTrackConfig::toMap\n");
+        fprintf(stderr, "Done with FlyTrackConfig::toMap\n");
 
         return configMap;
     }
@@ -494,13 +599,21 @@ namespace bias
         return false;
     }
 
-    void FlyTrackConfig::setRoiParams(ROIType roiTypeNew, double roiCenterXNew, double roiCenterYNew, double roiWidthNew, double roiHeightNew) {
+	void FlyTrackConfig::setRoiParams(ROIType roiTypeNew, double roiCenterXNew, double roiCenterYNew, double roiWidthNew, double roiHeightNew, double roiLeftFeederCenterXNew, double roiLeftFeederCenterYNew, double roiLeftFeederWidthNew, double roiLeftFeederHeightNew, double roiRightFeederCenterXNew, double roiRightFeederCenterYNew, double roiRightFeederWidthNew, double roiRightFeederHeightNew) {
         roiType = roiTypeNew;
         roiCenterX = roiCenterXNew;
         roiCenterY = roiCenterYNew;
         roiWidth = roiWidthNew;
         roiHeight = roiHeightNew;
-    }
+		roiLeftFeederCenterX = roiLeftFeederCenterXNew;
+		roiLeftFeederCenterY = roiLeftFeederCenterYNew;
+		roiLeftFeederWidth = roiLeftFeederWidthNew;
+		roiLeftFeederHeight = roiLeftFeederHeightNew;
+		roiRightFeederCenterX = roiRightFeederCenterXNew;
+		roiRightFeederCenterY = roiRightFeederCenterYNew;
+		roiRightFeederWidth = roiRightFeederWidthNew;
+		roiRightFeederHeight = roiRightFeederHeightNew;
 
+    }
 
 }

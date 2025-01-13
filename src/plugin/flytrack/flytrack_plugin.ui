@@ -29,7 +29,7 @@
    <item>
     <layout class="QHBoxLayout" name="mainHorizontalLayout">
      <property name="sizeConstraint">
-      <enum>QLayout::SetNoConstraint</enum>
+      <enum>QLayout::SizeConstraint::SetNoConstraint</enum>
      </property>
      <item>
       <widget class="QWidget" name="controlsWidget" native="true">
@@ -60,7 +60,7 @@
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_4">
             <property name="sizeConstraint">
-             <enum>QLayout::SetMinimumSize</enum>
+             <enum>QLayout::SizeConstraint::SetMinimumSize</enum>
             </property>
             <property name="topMargin">
              <number>0</number>
@@ -77,7 +77,7 @@
                <string>Mode</string>
               </property>
               <property name="alignment">
-               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+               <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
               </property>
              </widget>
             </item>
@@ -106,7 +106,7 @@
           <item>
            <widget class="Line" name="line_6">
             <property name="orientation">
-             <enum>Qt::Horizontal</enum>
+             <enum>Qt::Orientation::Horizontal</enum>
             </property>
            </widget>
           </item>
@@ -121,13 +121,13 @@
                </sizepolicy>
               </property>
               <property name="layoutDirection">
-               <enum>Qt::RightToLeft</enum>
+               <enum>Qt::LayoutDirection::RightToLeft</enum>
               </property>
               <property name="text">
                <string>Bkgd Image Path</string>
               </property>
               <property name="alignment">
-               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+               <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
               </property>
              </widget>
             </item>
@@ -196,7 +196,7 @@
           <item>
            <widget class="Line" name="line">
             <property name="orientation">
-             <enum>Qt::Horizontal</enum>
+             <enum>Qt::Orientation::Horizontal</enum>
             </property>
            </widget>
           </item>
@@ -205,13 +205,13 @@
             <item>
              <widget class="QLabel" name="flyVsBgModeLabel">
               <property name="layoutDirection">
-               <enum>Qt::RightToLeft</enum>
+               <enum>Qt::LayoutDirection::RightToLeft</enum>
               </property>
               <property name="text">
                <string>Comparison Mode</string>
               </property>
               <property name="alignment">
-               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+               <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
               </property>
              </widget>
             </item>
@@ -247,13 +247,13 @@
             <item>
              <widget class="QLabel" name="backgroundThresholdLabel">
               <property name="layoutDirection">
-               <enum>Qt::RightToLeft</enum>
+               <enum>Qt::LayoutDirection::RightToLeft</enum>
               </property>
               <property name="text">
                <string>Background Threshold</string>
               </property>
               <property name="alignment">
-               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+               <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
               </property>
              </widget>
             </item>
@@ -275,7 +275,7 @@
           <item>
            <widget class="Line" name="line_2">
             <property name="orientation">
-             <enum>Qt::Horizontal</enum>
+             <enum>Qt::Orientation::Horizontal</enum>
             </property>
            </widget>
           </item>
@@ -284,13 +284,13 @@
             <item>
              <widget class="QLabel" name="roiTypeLabel">
               <property name="layoutDirection">
-               <enum>Qt::RightToLeft</enum>
+               <enum>Qt::LayoutDirection::RightToLeft</enum>
               </property>
               <property name="text">
                <string>ROI Type</string>
               </property>
               <property name="alignment">
-               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+               <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
               </property>
              </widget>
             </item>
@@ -316,13 +316,13 @@
             <item>
              <widget class="QLabel" name="roiCenterXLabel">
               <property name="layoutDirection">
-               <enum>Qt::RightToLeft</enum>
+               <enum>Qt::LayoutDirection::RightToLeft</enum>
               </property>
               <property name="text">
                <string>ROI Center X</string>
               </property>
               <property name="alignment">
-               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+               <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
               </property>
              </widget>
             </item>
@@ -342,13 +342,13 @@
             <item>
              <widget class="QLabel" name="roiCenterYLabel">
               <property name="layoutDirection">
-               <enum>Qt::RightToLeft</enum>
+               <enum>Qt::LayoutDirection::RightToLeft</enum>
               </property>
               <property name="text">
                <string>ROI Center Y</string>
               </property>
               <property name="alignment">
-               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+               <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
               </property>
              </widget>
             </item>
@@ -372,13 +372,13 @@
             <item>
              <widget class="QLabel" name="roiWidthLabel">
               <property name="layoutDirection">
-               <enum>Qt::RightToLeft</enum>
+               <enum>Qt::LayoutDirection::RightToLeft</enum>
               </property>
               <property name="text">
                <string>ROI Width</string>
               </property>
               <property name="alignment">
-               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+               <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
               </property>
              </widget>
             </item>
@@ -395,15 +395,15 @@
               </property>
              </widget>
             </item>
-            <item>
-             <widget class="QLabel" name="ROIHeightLabel">
+            <item alignment="Qt::AlignmentFlag::AlignRight">
+             <widget class="QLabel" name="roiHeightLabel">
               <property name="text">
                <string>ROI Height</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QSpinBox" name="ROIHeightSpinBox">
+             <widget class="QSpinBox" name="roiHeightSpinBox">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
                 <horstretch>0</horstretch>
@@ -417,14 +417,149 @@
           <item>
            <widget class="Line" name="line_3">
             <property name="orientation">
-             <enum>Qt::Horizontal</enum>
+             <enum>Qt::Orientation::Horizontal</enum>
             </property>
            </widget>
           </item>
           <item>
+           <widget class="QLabel" name="label">
+            <property name="text">
+             <string>Feeder ROI parameters</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QGridLayout" name="gridLayout">
+            <item row="0" column="3">
+             <widget class="QSpinBox" name="roiLeftFeederCenterYSpinBox">
+              <property name="maximum">
+               <number>999999999</number>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="2" alignment="Qt::AlignmentFlag::AlignRight">
+             <widget class="QLabel" name="roiLeftFeederCenterYLabel">
+              <property name="text">
+               <string>Left Center Y</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="0" alignment="Qt::AlignmentFlag::AlignRight">
+             <widget class="QLabel" name="roiLeftFeederCenterXLabel">
+              <property name="text">
+               <string>Left Center X</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QSpinBox" name="roiLeftFeederCenterXSpinBox">
+              <property name="maximum">
+               <number>999999999</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QGridLayout" name="gridLayout_2">
+            <item row="0" column="2" alignment="Qt::AlignmentFlag::AlignRight">
+             <widget class="QLabel" name="roiLeftFeederHeightLabel">
+              <property name="text">
+               <string>Left Height</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QSpinBox" name="roiLeftFeederWidthSpinBox">
+              <property name="maximum">
+               <number>999999999</number>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="3">
+             <widget class="QSpinBox" name="roiLeftFeederHeightSpinBox">
+              <property name="maximum">
+               <number>999999999</number>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="0" alignment="Qt::AlignmentFlag::AlignRight">
+             <widget class="QLabel" name="roiLeftFeederWidthLabel">
+              <property name="text">
+               <string>Left Width</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QGridLayout" name="gridLayout_3">
+            <item row="0" column="3">
+             <widget class="QSpinBox" name="roiRightFeederCenterYSpinBox">
+              <property name="maximum">
+               <number>999999999</number>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QSpinBox" name="roiRightFeederCenterXSpinBox">
+              <property name="maximum">
+               <number>999999999</number>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="2" alignment="Qt::AlignmentFlag::AlignRight">
+             <widget class="QLabel" name="roiRightFeederCenterYLabel">
+              <property name="text">
+               <string>Right Center Y</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="0" alignment="Qt::AlignmentFlag::AlignRight">
+             <widget class="QLabel" name="roiRightFeederCenterXLabel">
+              <property name="text">
+               <string>Right Center X</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QGridLayout" name="gridLayout_4">
+            <item row="0" column="2" alignment="Qt::AlignmentFlag::AlignRight">
+             <widget class="QLabel" name="roiRightFeederHeightLabel">
+              <property name="text">
+               <string>Right Height</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="3">
+             <widget class="QSpinBox" name="roiRightFeederHeightSpinBox">
+              <property name="maximum">
+               <number>999999999</number>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QSpinBox" name="roiRightFeederWidthSpinBox">
+              <property name="maximum">
+               <number>999999999</number>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="0" alignment="Qt::AlignmentFlag::AlignRight">
+             <widget class="QLabel" name="roiRightFeederWidthLabel">
+              <property name="text">
+               <string>Right Width</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
            <widget class="Line" name="line_4">
             <property name="orientation">
-             <enum>Qt::Horizontal</enum>
+             <enum>Qt::Orientation::Horizontal</enum>
             </property>
            </widget>
           </item>
@@ -450,13 +585,13 @@
             <item>
              <widget class="QLabel" name="logFilePathLabel">
               <property name="layoutDirection">
-               <enum>Qt::RightToLeft</enum>
+               <enum>Qt::LayoutDirection::RightToLeft</enum>
               </property>
               <property name="text">
                <string>Absolute Path</string>
               </property>
               <property name="alignment">
-               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+               <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
               </property>
              </widget>
             </item>
@@ -490,13 +625,13 @@
             <item>
              <widget class="QLabel" name="tmpOutDirLabel">
               <property name="layoutDirection">
-               <enum>Qt::RightToLeft</enum>
+               <enum>Qt::LayoutDirection::RightToLeft</enum>
               </property>
               <property name="text">
                <string>Debug Output Folder</string>
               </property>
               <property name="alignment">
-               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+               <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
               </property>
              </widget>
             </item>
@@ -532,7 +667,7 @@
                </sizepolicy>
               </property>
               <property name="layoutDirection">
-               <enum>Qt::RightToLeft</enum>
+               <enum>Qt::LayoutDirection::RightToLeft</enum>
               </property>
               <property name="text">
                <string>Debug</string>
@@ -544,7 +679,7 @@
           <item>
            <widget class="Line" name="line_5">
             <property name="orientation">
-             <enum>Qt::Horizontal</enum>
+             <enum>Qt::Orientation::Horizontal</enum>
             </property>
            </widget>
           </item>
