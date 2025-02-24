@@ -14,7 +14,7 @@ namespace bias
     const double VideoWriter_avi::MIN_ALLOWED_DT_ESTIMATE = 0.00001; 
     const unsigned int VideoWriter_avi::DEFAULT_FRAME_SKIP = 1;
     //const int VideoWriter_avi::DEFAULT_FOURCC = CV_FOURCC('X','V','I','D');
-    const int VideoWriter_avi::DEFAULT_FOURCC = cv::VideoWriter::fourcc('X','V','I','D');
+    const int VideoWriter_avi::DEFAULT_FOURCC = cv::VideoWriter::fourcc('M','J','P','G');
     const VideoWriterParams_avi VideoWriter_avi::DEFAULT_PARAMS = 
         VideoWriterParams_avi();
 
@@ -55,6 +55,7 @@ namespace bias
 
     void VideoWriter_avi::addFrame(StampedImage stampedImg)
     {
+        std::cout << "addFrame dtEstimate: " << stampedImg.dtEstimate << std::endl;
         if (isFirst_)
         {
             setupOutput(stampedImg);
@@ -99,6 +100,11 @@ namespace bias
         videoWriterMutexPtr_ -> lock();
         try
         {
+			std::cout << "Opening video file: " << incrFileName << std::endl
+				<< "  fourcc: " << fourcc_ << std::endl
+				<< "  fps: " << fps_ << std::endl
+				<< "  size: " << size_ << std::endl
+				<< "  isColorImage: " << isColorImage << std::endl;
             openOK = videoWriter_.open(
                     incrFileName,
                     fourcc_,
@@ -151,6 +157,7 @@ namespace bias
     QMap<unsigned int, QString> VideoWriter_avi::getFourccToStringMap()
     {
         QMap<unsigned int, QString> map;
+
         map[0] = QString("NONE"); 
         //map[CV_FOURCC('X','V','I','D')] = QString("XVID");
         //map[CV_FOURCC('D','I','B',' ')] = QString("DIB"); 
@@ -173,6 +180,16 @@ namespace bias
         map[cv::VideoWriter::fourcc('F','L','V','1')] = QString("FLV1");
         map[cv::VideoWriter::fourcc('H','F','Y','U')] = QString("HFYU");
 
+        // added by KB 20250224
+        map[cv::VideoWriter::fourcc('M', 'J', 'P', 'G')] = QString("MJPG");
+        map[cv::VideoWriter::fourcc('M','R','L','E')] = QString("MRLE");
+        map[cv::VideoWriter::fourcc('L','A','G','S')] = QString("LAGS");
+		map[cv::VideoWriter::fourcc('M','S','V','C')] = QString("MSVC");
+		map[cv::VideoWriter::fourcc('M', 'S', 'Y', 'V')] = QString("MSYV");
+		map[cv::VideoWriter::fourcc('T', 'S', 'Y', 'V')] = QString("TSYV");
+		map[cv::VideoWriter::fourcc('X', '2', '6', '4')] = QString("X264");
+
+
         return map;
     }
 
@@ -194,6 +211,15 @@ namespace bias
     {
         QMap<unsigned int ,QString> codecMap = getFourccToStringMap();
         QStringList codecList = codecMap.values();
+        // print codec list
+		//QStringList::iterator it;
+		//std::cout << "allowed codecs: " << std::endl;
+		//for (it = codecList.begin(); it != codecList.end(); it++)
+		//{
+		//	std::cout << "codec: " << it->toStdString() << std::endl;
+		//}
+
+
         return codecList;
     }
 
