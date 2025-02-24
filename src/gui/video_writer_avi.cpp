@@ -99,11 +99,6 @@ namespace bias
         videoWriterMutexPtr_ -> lock();
         try
         {
-			std::cout << "Opening video file: " << incrFileName << std::endl
-				<< "  fourcc: " << fourcc_ << std::endl
-				<< "  fps: " << fps_ << std::endl
-				<< "  size: " << size_ << std::endl
-				<< "  isColorImage: " << isColorImage << std::endl;
             openOK = videoWriter_.open(
                     incrFileName,
                     fourcc_,
@@ -169,25 +164,19 @@ namespace bias
         //map[CV_FOURCC('F','L','V','1')] = QString("FLV1");
         //map[CV_FOURCC('H','F','Y','U')] = QString("HFYU");
 
-        map[cv::VideoWriter::fourcc('X','V','I','D')] = QString("XVID");
-        map[cv::VideoWriter::fourcc('I','4','2','0')] = QString("I420");
-        map[cv::VideoWriter::fourcc('I','Y','U','V')] = QString("IYUV");
-        map[cv::VideoWriter::fourcc('M','P','4','2')] = QString("MP42");
-        map[cv::VideoWriter::fourcc('D','I','V','3')] = QString("DIV3");
-        map[cv::VideoWriter::fourcc('D','I','V','X')] = QString("DIVX");
-        map[cv::VideoWriter::fourcc('U','2','6','3')] = QString("H263");
-        map[cv::VideoWriter::fourcc('F','L','V','1')] = QString("FLV1");
-        map[cv::VideoWriter::fourcc('H','F','Y','U')] = QString("HFYU");
-
         // added by KB 20250224
-        map[cv::VideoWriter::fourcc('M', 'J', 'P', 'G')] = QString("MJPG");
-        map[cv::VideoWriter::fourcc('M','R','L','E')] = QString("MRLE");
-        map[cv::VideoWriter::fourcc('L','A','G','S')] = QString("LAGS");
-		map[cv::VideoWriter::fourcc('M','S','V','C')] = QString("MSVC");
-		map[cv::VideoWriter::fourcc('M', 'S', 'Y', 'V')] = QString("MSYV");
-		map[cv::VideoWriter::fourcc('T', 'S', 'Y', 'V')] = QString("TSYV");
-		map[cv::VideoWriter::fourcc('X', '2', '6', '4')] = QString("X264");
+        map[cv::VideoWriter::fourcc('M', 'J', 'P', 'G')] = QString("MJPG"); // test 20250224: works
+        map[cv::VideoWriter::fourcc('H', '2', '6', '4')] = QString("H264");
 
+        map[cv::VideoWriter::fourcc('X', 'V', 'I', 'D')] = QString("XVID"); // test 20250224: works
+        map[cv::VideoWriter::fourcc('D', 'I', 'V', 'X')] = QString("DIVX"); // test 20250224: works
+        //map[cv::VideoWriter::fourcc('I','4','2','0')] = QString("I420"); // test 20250224: writing works, but VLC doesn't play it
+        //map[cv::VideoWriter::fourcc('I','Y','U','V')] = QString("IYUV"); // test 20250224: writing works, but VLC doesn't play it
+		map[cv::VideoWriter::fourcc('M', 'P', '4', '2')] = QString("MP42"); // test 20250224: works
+		map[cv::VideoWriter::fourcc('D', 'I', 'V', '3')] = QString("DIV3"); // test 20250224: works
+        // map[cv::VideoWriter::fourcc('U','2','6','3')] = QString("H263"); // test 20250224: writing errors
+        map[cv::VideoWriter::fourcc('F','L','V','1')] = QString("FLV1"); // test 202050224: works
+		map[cv::VideoWriter::fourcc('H', 'F', 'Y', 'U')] = QString("HFYU"); // test 20250224: works
 
         return map;
     }
