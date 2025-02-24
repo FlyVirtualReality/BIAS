@@ -55,7 +55,6 @@ namespace bias
 
     void VideoWriter_avi::addFrame(StampedImage stampedImg)
     {
-        std::cout << "addFrame dtEstimate: " << stampedImg.dtEstimate << std::endl;
         if (isFirst_)
         {
             setupOutput(stampedImg);
