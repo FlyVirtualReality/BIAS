@@ -74,14 +74,14 @@ namespace bias
         std::string incrFileName = getUniqueFileName().toStdString();
         
         setSize(stampedImg.image.size());
-
         if (stampedImg.dtEstimate > MIN_ALLOWED_DT_ESTIMATE)
         {
             fps_ = 1.0/(stampedImg.dtEstimate*frameSkip_);
         }
         else
         {
-            fps_ = 1.0;
+            //fps_ = 1.0;
+            fps_ = DEFAULT_FPS;
         }
 
         bool isColorImage;
