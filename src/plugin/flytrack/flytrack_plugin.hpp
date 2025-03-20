@@ -59,12 +59,16 @@ namespace bias
             static const unsigned int BG_HIST_NUM_BINS;
             static const unsigned int BG_HIST_BIN_SIZE;
             static const double MIN_VEL_MATCH_DOTPROD; // minimum dot product for velocity matching
+
+            static const float PI;
+
 	        static const cv::Rect ROI;
             static const cv::Rect ROI_left;
             static const cv::Rect ROI_right;
 	        static const unsigned int fish_detect_intensity_threshold; // Maximum pixel intensity that defines a fish
 	        static const unsigned int fish_detect_pixel_threshold; // Minimum pixel count that detects a fish outside the ROI
             static const unsigned int fish_size_threshold; // Minimum pixel count that identifies a blob as a fish
+			static const float roi_angle; // Angle of the ROI that detects fish in degrees
             bool trigger_pulsed; // Flag making sure trigger is pulsed only in the first frame after a fish leaves the ROI. Refresh after all fish return to ROI
             bool trigger;
             bool fishInLeftFeeder;
@@ -92,8 +96,14 @@ namespace bias
             RtnStatus getArenaParams(EllipseParams& ell);
 
             bool scanFishOutsideROI(cv::Mat& isFg, cv::Rect ROI);
+			void createRotatedRectMask(cv::Mat& mask, cv::RotatedRect rotatedRect);
+            void rotatedRectangle(cv::Mat& currentImageCopy, cv::Point2f center, cv::Size2f size, double rotationDegree, cv::Scalar color);
+            void rectangleUnion(cv::Mat& currentImageCopy, cv::Point2f center, cv::Size2f size, double angle, cv::Scalar color);
             bool detectAllFishInsideROI(cv::Mat& isFg, cv::Rect ROI);
             bool detectOneFishInsideROI(cv::Mat& isFg, cv::Rect ROI);
+            bool detectOneFishInsideROI_rotated(cv::Mat& isFg, double centerX, double centerY, double width, double height, double angle);
+            bool detectOneFishInsideUnionROI_rotated(cv::Mat& isFg, double centerX, double centerY, double width, double height, double angle);
+
 
             QPointer<CameraWindow> getCameraWindow();
 
@@ -138,6 +148,8 @@ namespace bias
             void setBackgroundModel(cv::Mat& bgMedianImage, FlyTrackConfig& config);
             cv::Mat circleROI(double centerX, double centerY, double centerRadius);
             cv::Mat rectangleROI(double centerX, double centerY, double width, double height);
+            cv::Mat rotatedRectangleROI(double centerX, double centerY, double width, double height, double angle);
+            cv::Mat rotatedUnionROI(double centerX, double centerY, double width, double height, double angle);
             void backgroundSubtraction();
             void setROI(FlyTrackConfig config);
             void updateVelocityHistory();

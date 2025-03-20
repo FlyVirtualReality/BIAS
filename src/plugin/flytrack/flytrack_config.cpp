@@ -52,6 +52,7 @@ namespace bias
         tmpTrackFilePath = QString(""); // empty string means it is not set
     }
 
+
     FlyTrackConfig FlyTrackConfig::copy() {
         FlyTrackConfig config;
         config.computeBgMode = computeBgMode;
@@ -70,6 +71,15 @@ namespace bias
         config.roiCenterY = roiCenterY;
         config.roiWidth = roiWidth;
         config.roiHeight = roiHeight;
+		config.roiLeftFeederCenterX = roiLeftFeederCenterX;
+		config.roiLeftFeederCenterY = roiLeftFeederCenterY;
+		config.roiLeftFeederWidth = roiLeftFeederWidth;
+        config.roiLeftFeederHeight = roiLeftFeederHeight;
+		config.roiRightFeederCenterX = roiRightFeederCenterX;
+		config.roiRightFeederCenterY = roiRightFeederCenterY;
+		config.roiRightFeederWidth = roiRightFeederWidth;
+		config.roiRightFeederHeight = roiRightFeederHeight;
+
         config.trackFileName = trackFileName;
         config.tmpTrackFilePath = tmpTrackFilePath;
         return config;
