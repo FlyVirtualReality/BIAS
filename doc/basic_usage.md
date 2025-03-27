@@ -280,5 +280,5 @@ The user manual menu items opens a browser window open to BIAS’s documentation
 
 Opens the about dialog showing the current version number of the software etc. Note, this is not yet implemented.
 
-![Help - About in BIAS](../imags/bias_help_about.png)
+![Help - About in BIAS](../images/bias_help_about.png)
 
