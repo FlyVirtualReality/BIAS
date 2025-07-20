@@ -19,7 +19,7 @@
 namespace bias {
 
     unsigned int ImageGrabber::DEFAULT_NUM_STARTUP_SKIP = 2;
-    unsigned int ImageGrabber::MIN_STARTUP_SKIP = 2;
+    unsigned int ImageGrabber::MIN_STARTUP_SKIP = 1;
     unsigned int ImageGrabber::MAX_ERROR_COUNT = 500;
 
     ImageGrabber::ImageGrabber(QObject *parent) : QObject(parent) 
@@ -67,7 +67,6 @@ namespace bias {
 
     void ImageGrabber::setIsVideo(bool v) {
         isVideo_ = v;
-        //isVideo_ = true;
     }
     void ImageGrabber::setVideoFileName(QString captureVideoFileName) {
         vidFileName_ = captureVideoFileName;
@@ -109,6 +108,7 @@ namespace bias {
         unsigned long frameCount = 0;
         unsigned long startUpCount = 0;
         double dtEstimate = 0.0;
+        unsigned int nDtUpdates = 0;
 
         StampedImage stampImg;
 
@@ -254,12 +254,14 @@ namespace bias {
                     if (startUpCount == MIN_STARTUP_SKIP)
                     {
                         dtEstimate = dt;
+                        nDtUpdates = 1;
 
                     }
                     else if (startUpCount > MIN_STARTUP_SKIP)
                     {
-                        double c0 = double(startUpCount-1)/double(startUpCount);
-                        double c1 = double(1.0)/double(startUpCount);
+                        nDtUpdates++;
+                        double c0 = double(nDtUpdates-1)/double(nDtUpdates);
+                        double c1 = double(1.0)/double(nDtUpdates);
                         dtEstimate = c0*dtEstimate + c1*dt;
                     }
                     startUpCount++;

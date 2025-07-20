@@ -9,6 +9,7 @@
 #include <QMap>
 #include <QPointer>
 #include <QMutex>
+#include <opencv2/videoio.hpp>
 
 namespace bias
 {
