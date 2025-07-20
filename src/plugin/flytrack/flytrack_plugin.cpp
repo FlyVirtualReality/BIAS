@@ -219,7 +219,9 @@ namespace bias
         if (fishInRightFeeder || fishInLeftFeeder) {
             printf("Feeder status: %d\n", feederStatus);
         }
+
         
+        /*
         if (trigger && !trigger_pulsed) {
             trigger_pulsed = true;
             if (has_triggered) {
@@ -242,6 +244,7 @@ namespace bias
             printf("All conditions were met. Trigger pulsed successfully!"); 
             fflush(stdout);
         }
+        */
 
         //Dummy trigger ends here
 
@@ -465,7 +468,8 @@ namespace bias
             }
         }
         else if (cmd == QString("get-fish-status")) {
-            value = fishStatusToJson(has_triggered);
+            //value = fishStatusToJson(has_triggered);
+			value = fishStatusToJson(trigger);
         }
         else if (cmd == QString("reset-fish-trigger")) {
             value = fishStatusToJson(has_triggered);
@@ -1788,6 +1792,7 @@ namespace bias
                 return true;
             }
         }
+        return false;
     }
 
 
