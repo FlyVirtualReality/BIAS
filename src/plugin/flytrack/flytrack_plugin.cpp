@@ -191,16 +191,12 @@ namespace bias
         backgroundSubtraction();
         
         // Dummy trigger
-        //trigger = detectAllFishInsideROI(isFg_, cv::Rect(config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiHeight));
+        
         trigger = !detectOneFishInsideUnionROI_rotated(isFg_, config_.roiCenterX, config_.roiCenterY, config_.roiWidth, config_.roiHeight, roi_angle);
-        //fishInLeftFeeder = detectOneFishInsideROI(isFg_, cv::Rect(config_.roiLeftFeederCenterX, config_.roiLeftFeederCenterY, config_.roiLeftFeederWidth, config_.roiLeftFeederHeight));
-        //fishInRightFeeder = detectOneFishInsideROI(isFg_, cv::Rect(config_.roiRightFeederCenterX, config_.roiRightFeederCenterY, config_.roiRightFeederWidth, config_.roiRightFeederHeight));
         fishInLeftFeeder = detectOneFishInsideROI_rotated(isFg_, config_.roiLeftFeederCenterX, config_.roiLeftFeederCenterY, config_.roiLeftFeederWidth, config_.roiLeftFeederHeight, roi_angle);
         fishInRightFeeder = detectOneFishInsideROI_rotated(isFg_, config_.roiRightFeederCenterX, config_.roiRightFeederCenterY, config_.roiRightFeederWidth, config_.roiRightFeederHeight, -roi_angle);
 
-        // The two commented lines below test a hard-coded version of the feeder rois
-        //fishInLeftFeeder = detectOneFishInsideROI(isFg_, cv::Rect(FlyTrackPlugin::ROI_left.x, FlyTrackPlugin::ROI_left.y, FlyTrackPlugin::ROI_left.width, FlyTrackPlugin::ROI_left.height));
-        //fishInRightFeeder = detectOneFishInsideROI(isFg_, cv::Rect(FlyTrackPlugin::ROI_right.x, FlyTrackPlugin::ROI_right.y, FlyTrackPlugin::ROI_right.width, FlyTrackPlugin::ROI_right.height));
+        fishCentroids_ = getFishCentroids(isFg_);
         
         if (fishInLeftFeeder && fishInRightFeeder) {
             feederStatus = 3;
@@ -216,9 +212,9 @@ namespace bias
         }
         //printf("Trigger status: %d\n", trigger);
         
-        if (fishInRightFeeder || fishInLeftFeeder) {
-            printf("Feeder status: %d\n", feederStatus);
-        }
+        //if (fishInRightFeeder || fishInLeftFeeder) {
+         //   printf("Feeder status: %d\n", feederStatus);
+        //}
 
         
         /*
@@ -478,6 +474,14 @@ namespace bias
         else if (cmd == QString("get-feeder-status")) {
             value = feederStatusToJson(feederStatus);
 
+        }
+        else if (cmd == QString("get-fish-centroids")) {
+            if (fishCentroids_.size() == 0) {
+                value = QString("[]");
+            }
+            else {
+				value = fishCentroidsToJson(fishCentroids_);
+            }
         }
         else if (cmd == QString("pop-back-track"))
         {
@@ -1769,6 +1773,25 @@ namespace bias
         return false;
     }
 
+    std::vector<cv::Point2f> FlyTrackPlugin::getFishCentroids(const cv::Mat& isFg) {
+        std::vector<cv::Point2f> centroids;
+        std::vector<std::vector<cv::Point>> contours;
+        cv::findContours(isFg, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+        for (const auto& contour : contours) {
+            double area = cv::contourArea(contour);
+            if (area > fish_detect_pixel_threshold) {
+                cv::Moments mu = cv::moments(contour, false);
+                if (mu.m00 != 0) {
+                    centroids.push_back(cv::Point2f(static_cast<float>(mu.m10 / mu.m00),
+                        static_cast<float>(mu.m01 / mu.m00)));
+                }
+            }
+        }
+        return centroids;
+    }
+
+
     bool FlyTrackPlugin::detectOneFishInsideUnionROI_rotated(cv::Mat& isFg, double centerX, double centerY, double width, double height, double angle) {
         cv::Mat unionMask = rotatedUnionROI(centerX, centerY, width, height, angle);
         cv::Mat masked_image;        
@@ -1906,6 +1929,18 @@ namespace bias
         QString json = QString("{");
         json += QString("\"trigger\": %1").arg(trigger);
         json += QString("}");
+        return json;
+    }
+
+    QString fishCentroidsToJson(const std::vector<cv::Point2f>& centroids) {
+        QString json = "[";
+        for (int i = 0; i < centroids.size(); ++i) {
+            json += QString("{\"x\": %1, \"y\": %2}").arg(centroids[i].x).arg(centroids[i].y);
+            if (i < centroids.size() - 1) {
+                json += ",";
+            }
+        }
+        json += "]";
         return json;
     }
 }

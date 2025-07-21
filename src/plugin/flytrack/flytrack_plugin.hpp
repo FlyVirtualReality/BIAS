@@ -42,6 +42,7 @@ namespace bias
     QString ellipseToJson(EllipseParams ell);
     QString fishStatusToJson(bool trigger);
     QString feederStatusToJson(unsigned int feederStatus);
+	QString fishCentroidsToJson(const std::vector<cv::Point2f>& centroids);
     bool checkFileExists(QString file);
 
 
@@ -103,6 +104,7 @@ namespace bias
             bool detectOneFishInsideROI(cv::Mat& isFg, cv::Rect ROI);
             bool detectOneFishInsideROI_rotated(cv::Mat& isFg, double centerX, double centerY, double width, double height, double angle);
             bool detectOneFishInsideUnionROI_rotated(cv::Mat& isFg, double centerX, double centerY, double width, double height, double angle);
+            std::vector<cv::Point2f>getFishCentroids(const cv::Mat& isFg);
 
 
             QPointer<CameraWindow> getCameraWindow();
@@ -207,6 +209,9 @@ namespace bias
             cv::Point2d meanFlyVelocity_; // mean velocity of fly
             double meanFlyOrientation_; // mean orientation of fly
             bool headTailResolved_; // flag indicating if head-tail orientation has been resolved ever
+
+            // Fish centroids
+			std::vector<cv::Point2f> fishCentroids_; // vector of fish centroids detected in the current frame
 
             // for writing images
             std::vector<int> imwriteParams_;
