@@ -29,7 +29,7 @@ namespace bias
     // ROI detection-related constants    
     const unsigned int FlyTrackPlugin::fish_detect_intensity_threshold = 20;
     const unsigned int FlyTrackPlugin::fish_detect_pixel_threshold = 30;
-    const unsigned int FlyTrackPlugin::fish_size_threshold = 30;
+    //const unsigned int FlyTrackPlugin::fish_size_threshold = 30;
     
 
     // ROIs near feeders
@@ -196,7 +196,6 @@ namespace bias
         fishInLeftFeeder = detectOneFishInsideROI_rotated(isFg_, config_.roiLeftFeederCenterX, config_.roiLeftFeederCenterY, config_.roiLeftFeederWidth, config_.roiLeftFeederHeight, roi_angle);
         fishInRightFeeder = detectOneFishInsideROI_rotated(isFg_, config_.roiRightFeederCenterX, config_.roiRightFeederCenterY, config_.roiRightFeederWidth, config_.roiRightFeederHeight, -roi_angle);
 
-        fishCentroids_ = getFishCentroids(isFg_);
         
         if (fishInLeftFeeder && fishInRightFeeder) {
             feederStatus = 3;
