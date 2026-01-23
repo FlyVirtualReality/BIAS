@@ -48,6 +48,12 @@ namespace bias
         roiRightFeederCenterY = 100; // Add this to defaults
         roiRightFeederWidth = 100; // Add this to defaults
         roiRightFeederHeight = 100; // Add this to defaults
+		roiResetCenterX = 100; // Add this to defaults
+		roiResetCenterY = 100; // Add this to defaults
+		roiResetWidth = 100; // Add this to defaults
+		roiResetHeight = 100; // Add this to defaults
+
+
         trackFileName = QString(""); // empty string means it is not set
         tmpTrackFilePath = QString(""); // empty string means it is not set
     }
@@ -79,6 +85,10 @@ namespace bias
 		config.roiRightFeederCenterY = roiRightFeederCenterY;
 		config.roiRightFeederWidth = roiRightFeederWidth;
 		config.roiRightFeederHeight = roiRightFeederHeight;
+		config.roiResetCenterX = roiResetCenterX;
+		config.roiResetCenterY = roiResetCenterY;
+		config.roiResetWidth = roiResetWidth;
+		config.roiResetHeight = roiResetHeight;
 
         config.trackFileName = trackFileName;
         config.tmpTrackFilePath = tmpTrackFilePath;
@@ -111,6 +121,10 @@ namespace bias
         configStr += QString("roiLeftFeederHeight: %1\n").arg(roiLeftFeederHeight);
         configStr += QString("roiRightFeederWidth: %1\n").arg(roiRightFeederWidth);
         configStr += QString("roiRightFeederHeight: %1\n").arg(roiRightFeederHeight);
+		configStr += QString("roiResetCenterX: %1\n").arg(roiResetCenterX);
+		configStr += QString("roiResetCenterY: %1\n").arg(roiResetCenterY);
+		configStr += QString("roiResetWidth: %1\n").arg(roiResetWidth);
+		configStr += QString("roiResetHeight: %1\n").arg(roiResetHeight);
         configStr += QString("historyBufferLength: %1\n").arg(historyBufferLength);
         configStr += QString("maxTrackQueueLength: %1\n").arg(maxTrackQueueLength);
         configStr += QString("minVelocityMagnitude: %1\n").arg(minVelocityMagnitude);
@@ -346,6 +360,43 @@ namespace bias
                 rtnStatus.appendMessage(QString("unable to convert roiRightFeederHeight to double"));
             }
         }
+		if (configMap.contains("roiResetCenterX")) {
+			if (configMap["roiResetCenterX"].canConvert<double>()) {
+				roiResetCenterX = configMap["roiResetCenterX"].toDouble();
+			}
+			else {
+				rtnStatus.success = false;
+				rtnStatus.appendMessage(QString("unable to convert roiResetCenterX to double"));
+			}
+		}
+		if (configMap.contains("roiResetCenterY")) {
+			if (configMap["roiResetCenterY"].canConvert<double>()) {
+				roiResetCenterY = configMap["roiResetCenterY"].toDouble();
+			}
+			else {
+				rtnStatus.success = false;
+				rtnStatus.appendMessage(QString("unable to convert roiResetCenterY to double"));
+			}
+		}
+		if (configMap.contains("roiResetWidth")) {
+			if (configMap["roiResetWidth"].canConvert<double>()) {
+				roiResetWidth = configMap["roiResetWidth"].toDouble();
+			}
+			else {
+				rtnStatus.success = false;
+				rtnStatus.appendMessage(QString("unable to convert roiResetWidth to double"));
+			}
+		}
+		if (configMap.contains("roiResetHeight")) {
+			if (configMap["roiResetHeight"].canConvert<double>()) {
+				roiResetHeight = configMap["roiResetHeight"].toDouble();
+			}
+			else {
+				rtnStatus.success = false;
+				rtnStatus.appendMessage(QString("unable to convert roiResetHeight to double"));
+			}
+		}
+
 
         return rtnStatus;
     }
@@ -496,6 +547,11 @@ namespace bias
         roiMap.insert("roiRightFeederCenterY", roiRightFeederCenterY);
         roiMap.insert("roiRightFeederWidth", roiRightFeederWidth);
         roiMap.insert("roiRightFeederHeight", roiRightFeederHeight);
+		roiMap.insert("roiResetCenterX", roiResetCenterX);
+		roiMap.insert("roiResetCenterY", roiResetCenterY);
+		roiMap.insert("roiResetWidth", roiResetWidth);
+		roiMap.insert("roiResetHeight", roiResetHeight);
+
 
         QVariantMap bgSubMap;
         bgSubMap.insert("backgroundThreshold", backgroundThreshold);
@@ -609,7 +665,7 @@ namespace bias
         return false;
     }
 
-	void FlyTrackConfig::setRoiParams(ROIType roiTypeNew, double roiCenterXNew, double roiCenterYNew, double roiWidthNew, double roiHeightNew, double roiLeftFeederCenterXNew, double roiLeftFeederCenterYNew, double roiLeftFeederWidthNew, double roiLeftFeederHeightNew, double roiRightFeederCenterXNew, double roiRightFeederCenterYNew, double roiRightFeederWidthNew, double roiRightFeederHeightNew) {
+	void FlyTrackConfig::setRoiParams(ROIType roiTypeNew, double roiCenterXNew, double roiCenterYNew, double roiWidthNew, double roiHeightNew, double roiLeftFeederCenterXNew, double roiLeftFeederCenterYNew, double roiLeftFeederWidthNew, double roiLeftFeederHeightNew, double roiRightFeederCenterXNew, double roiRightFeederCenterYNew, double roiRightFeederWidthNew, double roiRightFeederHeightNew, double roiResetCenterXNew, double roiResetCenterYNew, double roiResetWidthNew, double resetResetHeightNew) {
         roiType = roiTypeNew;
         roiCenterX = roiCenterXNew;
         roiCenterY = roiCenterYNew;
@@ -623,6 +679,11 @@ namespace bias
 		roiRightFeederCenterY = roiRightFeederCenterYNew;
 		roiRightFeederWidth = roiRightFeederWidthNew;
 		roiRightFeederHeight = roiRightFeederHeightNew;
+		roiResetCenterX = roiResetCenterXNew;
+		roiResetCenterY = roiResetCenterYNew;
+		roiResetWidth = roiResetWidthNew;
+		roiResetHeight = resetResetHeightNew;
+        
 
     }
 
