@@ -65,6 +65,10 @@ namespace bias
 			double roiRightFeederCenterY; // y-coordinate of right feeder ROI center
 			double roiRightFeederWidth; // radius of right feeder ROI
 			double roiRightFeederHeight; // radius of right feeder ROI
+			double roiResetCenterX; // x-coordinate of reset ROI center
+			double roiResetCenterY; // y-coordinate of reset ROI center
+			double roiResetWidth; // radius of reset ROI
+			double roiResetHeight; // radius of reset ROI
             int historyBufferLength; // number of frames to buffer velocity, orientation
             int maxTrackQueueLength; // number of tracks to buffer
             double minVelocityMagnitude; // minimum velocity magnitude in pixels/frame to consider fly moving
@@ -75,7 +79,7 @@ namespace bias
 
             FlyTrackConfig();
             FlyTrackConfig FlyTrackConfig::copy();
-			void setRoiParams(ROIType roiTypeNew, double roiCenterXNew, double roiCenterYNew, double roiWidthNew, double roiHeightNew, double roiLeftFeederCenterXNew, double roiLeftFeederCenterYNew, double roiLeftFeederWidthNew, double roiLeftFeederHeightNew, double roiRightFeederCenterXNew, double roiRightFeederCenterYNew, double roiRightFeederWidthNew, double roiRightFeederHeightNew);
+			void setRoiParams(ROIType roiTypeNew, double roiCenterXNew, double roiCenterYNew, double roiWidthNew, double roiHeightNew, double roiLeftFeederCenterXNew, double roiLeftFeederCenterYNew, double roiLeftFeederWidthNew, double roiLeftFeederHeightNew, double roiRightFeederCenterXNew, double roiRightFeederCenterYNew, double roiRightFeederWidthNew, double roiRightFeederHeightNew, double roiResetCenterX, double roiResetCenterY, double roiResetWidth, double roiResetHeight);
 
             RtnStatus setBgEstFromMap(QVariantMap configMap);
             RtnStatus setRoiFromMap(QVariantMap configMap);

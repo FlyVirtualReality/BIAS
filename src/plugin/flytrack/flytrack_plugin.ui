@@ -410,6 +410,73 @@
                 <verstretch>0</verstretch>
                </sizepolicy>
               </property>
+              <property name="maximum">
+               <number>999999999</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout">
+            <item alignment="Qt::AlignmentFlag::AlignRight">
+             <widget class="QLabel" name="roiResetCenterXLabel">
+              <property name="text">
+               <string>ResetROI Center X</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="roiResetCenterXSpinBox">
+              <property name="maximum">
+               <number>999999999</number>
+              </property>
+             </widget>
+            </item>
+            <item alignment="Qt::AlignmentFlag::AlignRight">
+             <widget class="QLabel" name="roiResetCenterYLabel">
+              <property name="text">
+               <string>ResetROI Center Y</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="roiResetCenterYSpinBox">
+              <property name="maximum">
+               <number>999999999</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_6">
+            <item alignment="Qt::AlignmentFlag::AlignRight">
+             <widget class="QLabel" name="roiResetWidthLabel">
+              <property name="text">
+               <string>ResetROI Width</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="roiResetWidthSpinBox">
+              <property name="maximum">
+               <number>999999999</number>
+              </property>
+             </widget>
+            </item>
+            <item alignment="Qt::AlignmentFlag::AlignRight">
+             <widget class="QLabel" name="resetROIHeightLabel">
+              <property name="text">
+               <string>ResetROI Height</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="roiResetHeightSpinBox">
+              <property name="maximum">
+               <number>999999999</number>
+              </property>
              </widget>
             </item>
            </layout>
@@ -526,14 +593,7 @@
           </item>
           <item>
            <layout class="QGridLayout" name="gridLayout_4">
-            <item row="0" column="2" alignment="Qt::AlignmentFlag::AlignRight">
-             <widget class="QLabel" name="roiRightFeederHeightLabel">
-              <property name="text">
-               <string>Right Height</string>
-              </property>
-             </widget>
-            </item>
-            <item row="0" column="3">
+            <item row="0" column="4">
              <widget class="QSpinBox" name="roiRightFeederHeightSpinBox">
               <property name="maximum">
                <number>999999999</number>
@@ -551,6 +611,13 @@
              <widget class="QLabel" name="roiRightFeederWidthLabel">
               <property name="text">
                <string>Right Width</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="2">
+             <widget class="QLabel" name="roiRightFeederHeightLabel">
+              <property name="text">
+               <string>Right Height</string>
               </property>
              </widget>
             </item>
@@ -763,6 +830,41 @@
    </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>computeBgModeComboBox</tabstop>
+  <tabstop>bgImageFilePathLineEdit</tabstop>
+  <tabstop>bgImageFilePathToolButton</tabstop>
+  <tabstop>nFramesSkipLineEdit</tabstop>
+  <tabstop>loadBgPushButton</tabstop>
+  <tabstop>flyVsBgModeComboBox</tabstop>
+  <tabstop>backgroundThresholdLineEdit</tabstop>
+  <tabstop>roiTypeComboBox</tabstop>
+  <tabstop>roiCenterXSpinBox</tabstop>
+  <tabstop>roiCenterYSpinBox</tabstop>
+  <tabstop>roiWidthSpinBox</tabstop>
+  <tabstop>roiHeightSpinBox</tabstop>
+  <tabstop>roiResetCenterXSpinBox</tabstop>
+  <tabstop>roiResetCenterYSpinBox</tabstop>
+  <tabstop>roiResetWidthSpinBox</tabstop>
+  <tabstop>roiResetHeightSpinBox</tabstop>
+  <tabstop>roiLeftFeederCenterXSpinBox</tabstop>
+  <tabstop>roiLeftFeederCenterYSpinBox</tabstop>
+  <tabstop>roiLeftFeederWidthSpinBox</tabstop>
+  <tabstop>roiLeftFeederHeightSpinBox</tabstop>
+  <tabstop>roiRightFeederCenterXSpinBox</tabstop>
+  <tabstop>roiRightFeederCenterYSpinBox</tabstop>
+  <tabstop>roiRightFeederWidthSpinBox</tabstop>
+  <tabstop>roiRightFeederHeightSpinBox</tabstop>
+  <tabstop>logFileNameLineEdit</tabstop>
+  <tabstop>logFilePathLineEdit</tabstop>
+  <tabstop>logFilePathToolButton</tabstop>
+  <tabstop>tmpOutDirLineEdit</tabstop>
+  <tabstop>tmpOutDirToolButton</tabstop>
+  <tabstop>DEBUGCheckBox</tabstop>
+  <tabstop>applyPushButton</tabstop>
+  <tabstop>donePushButton</tabstop>
+  <tabstop>cancelPushButton</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

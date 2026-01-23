@@ -41,6 +41,7 @@ namespace bias
     double mod2pi(double angle);
     QString ellipseToJson(EllipseParams ell);
     QString fishStatusToJson(bool trigger);
+	QString resetStatusToJson(unsigned int resetStatus);
     QString feederStatusToJson(unsigned int feederStatus);
 	QString fishCentroidsToJson(const std::vector<cv::Point2f>& centroids);
     bool checkFileExists(QString file);
@@ -74,7 +75,9 @@ namespace bias
             bool trigger;
             bool fishInLeftFeeder;
             bool fishInRightFeeder;
+            bool fishInResetROI;
             unsigned int feederStatus; // 1: left feeder, 2: right feeder, 3: both feeders, 0: no feeder
+			unsigned int resetStatus; // 1: reset ROI, 0: no reset
             bool has_triggered; // Have all the fish entered the ROI since last resetting
 	        //static const unsigned int ROI_x;
 	        //static const unsigned int ROI_y;
@@ -101,7 +104,7 @@ namespace bias
             void rotatedRectangle(cv::Mat& currentImageCopy, cv::Point2f center, cv::Size2f size, double rotationDegree, cv::Scalar color);
             void rectangleUnion(cv::Mat& currentImageCopy, cv::Point2f center, cv::Size2f size, double angle, cv::Scalar color);
             bool detectAllFishInsideROI(cv::Mat& isFg, cv::Rect ROI);
-            bool detectOneFishInsideROI(cv::Mat& isFg, cv::Rect ROI);
+            //bool detectOneFishInsideROI(cv::Mat& isFg, cv::Rect ROI);
             bool detectOneFishInsideROI_rotated(cv::Mat& isFg, double centerX, double centerY, double width, double height, double angle);
             bool detectOneFishInsideUnionROI_rotated(cv::Mat& isFg, double centerX, double centerY, double width, double height, double angle);
             std::vector<cv::Point2f>getFishCentroids(const cv::Mat& isFg);
@@ -196,6 +199,7 @@ namespace bias
             cv::Mat inROI_; // mask for ROI
             cv::Mat inROI_left_; //mask for left ROI
             cv::Mat inROI_right_; //mask for right ROI
+			cv::Mat inROI_reset_; //mask for reset ROI
             EllipseParams flyEllipse_; // fly ellipse parameters
             int lastFramePreviewed_; // last frame shown in preview window
             int lastFrameMedianComputed_; // last frame median computed
