@@ -10,6 +10,10 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include "mat_to_qimage.hpp"
+#include <QThreadPool> // for multithreading. Thread pool is managed by Qt
+// Re-using classes for dynamic background modeling as done in video_writer_ufmf.cpp
+#include "background_histogram_ufmf.hpp" //Accumulates histogram
+#include "background_median_ufmf.hpp" // Computes median image 
 
 namespace bias
 {
@@ -22,9 +26,14 @@ namespace bias
 
 	const float FlyTrackPlugin::PI = 3.14159265358979323846;
     
+	// Background estimation-related constants
     const unsigned int FlyTrackPlugin::BG_HIST_NUM_BINS = 256;
     const unsigned int FlyTrackPlugin::BG_HIST_BIN_SIZE = 1;
     const double FlyTrackPlugin::MIN_VEL_MATCH_DOTPROD = 0.25;
+	const unsigned int FlyTrackPlugin::DYNAMIC_BG_MEDIAN_UPDATE_COUNT = 100; //frames to accumulate for bg comptute
+	const unsigned int FlyTrackPlugin::DYNAMIC_BG_MEDIAN_UPDATE_INTERVAL = 50; //interval between bg computes
+	const unsigned int FlyTrackPlugin::DYNAMIC_BG_NUM_THREADS = 2; //number of threads for bg compute
+
 
     // ROI detection-related constants    
     const unsigned int FlyTrackPlugin::fish_detect_intensity_threshold = 20;
@@ -37,6 +46,10 @@ namespace bias
     const cv::Rect FlyTrackPlugin::ROI_right(1440, 690, 300, 240); //(x,y,width,height)
 	const float FlyTrackPlugin::roi_angle = 30.0; // Angle of the ROI that detects fish in degrees
     
+    // Should background model be static or computed dynamically periodically?
+	bool FlyTrackPlugin::computeBackgroundModelDynamically = true;
+	unsigned int FlyTrackPlugin::backgroundUpdateFramePeriod = 0; // in frames
+
     
     // Public
     // ------------------------------------------------------------------------
@@ -96,6 +109,97 @@ namespace bias
 
 
         setRequireTimer(false);
+
+        // Initialize dynamic background threading
+        dynamicBgModelingStarted_ = false;
+
+		// Create thread pool for background reading
+		bgThreadPoolPtr_ = new QThreadPool(this);
+		bgThreadPoolPtr_->setMaxThreadCount(FlyTrackPlugin::DYNAMIC_BG_NUM_THREADS);
+
+        // Create communication queues
+		bgImageQueuePtr_ = std::make_shared<LockableQueue<StampedImage>>();
+		bgNewDataQueuePtr_ = std::make_shared<LockableQueue<BackgroundData_ufmf>>();
+		bgOldDataQueuePtr_ = std::make_shared<LockableQueue<BackgroundData_ufmf>>();
+		bgMedianMatQueuePtr_ = std::make_shared<LockableQueue<cv::Mat>>();
+    }
+
+    FlyTrackPlugin::~FlyTrackPlugin()
+    {
+        stopDynamicBackgroundModeling();
+        if (bgThreadPoolPtr_) { // waits until the workers are destroyed
+            bgThreadPoolPtr_->waitForDone();
+        }
+    }
+
+    void FlyTrackPlugin::startDynamicBackgroundModeling()
+    {
+        if (dynamicModelingStarted_) return;
+		printf("Starting dynamic backgrounde modeling threads\n");
+
+        //Clewar queues
+        bgImageQueuePtr_->clear();
+		bgNewDataQueuePtr_->clear();
+		bgOldDataQueuePtr_->clear();
+		bgMedianMatQueuePtr_->clear();
+		
+		// Create histogram worker
+        bgHistogramPtr_ = new BackgroundHistogram_ufmf(
+            bgImageQueuePtr_,
+            bgNewDataQueuePtr_,
+            bgOldDataQueuePtr_,
+            0 // camera number
+        );
+		bgHistogramPtr_->setMedianUpdateCount(FlyTrackPlugin::DYNAMIC_BG_MEDIAN_UPDATE_COUNT);
+		bgHistogramPtr_->setMedianUpdateInterval(FlyTrackPlugin::DYNAMIC_BG_MEDIAN_UPDATE_INTERVAL);
+
+        // Create median worker
+        bgMedianPtr_ = new BackgroundMedian_ufmf(
+            bgNewDataQueuePtr_,
+            bgOldDataQueuePtr_,
+            bgMedianMatQueuePtr_,
+            0  // cameraNumber
+        );
+
+        // Start workers on thread pool
+		bgThreadPoolPtr_->start(bgHistogramPtr_);
+		bgThreadPoolPtr_->start(bgMedianPtr_);
+		dynamicModelingStarted_ = true;
+    }
+
+    void FlyTrackPlugin::stopDynamicBackgroundModeling()
+    {
+        if (!dynamicBgModelingStarted_) return;
+
+        printf("Stopping dynamic background modeling threads\n");
+        fflush(stdout);
+
+        // Tell median worker to stop
+        if (!bgMedianPtr_.isNull()) {
+            bgMedianPtr_->acquireLock();
+            bgMedianPtr_->stop();           // Sets internal flag
+            bgMedianPtr_->releaseLock();
+
+            // Wake it up in case it's waiting on empty queue
+            bgNewDataQueuePtr_->acquireLock();
+            bgNewDataQueuePtr_->signalNotEmpty();
+            bgNewDataQueuePtr_->releaseLock();
+        }
+
+        // Tell histogram worker to stop
+        if (!bgHistogramPtr_.isNull()) {
+            bgHistogramPtr_->acquireLock();
+            bgHistogramPtr_->stop();
+            bgHistogramPtr_->releaseLock();
+
+            bgImageQueuePtr_->acquireLock();
+            bgImageQueuePtr_->signalNotEmpty();
+            bgImageQueuePtr_->releaseLock();
+        }
+
+        // Wait for both to finish
+        bgThreadPoolPtr_->waitForDone();
+        dynamicBgModelingStarted_ = false;
     }
 
     void FlyTrackPlugin::reset()
@@ -131,6 +235,7 @@ namespace bias
     }
 
     void FlyTrackPlugin::stop(){ 
+        stopDynamicBackgroundModeling();
         BiasPlugin::stop();
         closeLogFile();
         if (config_.computeBgMode) {
@@ -169,10 +274,12 @@ namespace bias
         timeStamp_ = latestFrame.timeStamp;
         frameCount_ = latestFrame.frameCount;
 
-        if (!bgImageComputed_) {
+        if (!bgImageComputed_ && !computeBackgroundModelDynamically) {
             fprintf(stderr, "Background model not computed\n");
 			return;
 		}
+
+
         //printf("\nProcessing frame %lu, timestamp = %f\n", frameCount_, timeStamp_);
         // empty frame
         if ((currentImage_.rows == 0) || (currentImage_.cols == 0))
@@ -180,13 +287,54 @@ namespace bias
             fprintf(stderr, "Empty frame\n");
 			return;
 		}
+        
+
+        if (computeBackgroundModelDynamically) {
+            // Start background modeling threads if not already started
+            if (!dynamicBgModelingStarted_) {
+                startDynamicBackgroundModeling();
+            }
+
+            // Push image to queue for background workers (non-blocking)
+            bgImageQueuePtr_->acquireLock();
+            if (bgImageQueuePtr_->empty()) {
+                bgImageQueuePtr_->push(latestFrame);
+                bgImageQueuePtr_->signalNotEmpty();
+            }
+            bgImageQueuePtr_->releaseLock();
+
+            // Check for new median image from worker (non-blocking)
+            bool haveNewMedian = false;
+            bgMedianMatQueuePtr_->acquireLock();
+            if (!bgMedianMatQueuePtr_->empty()) {
+                bgMedianImage_ = bgMedianMatQueuePtr_->front();
+                bgMedianMatQueuePtr_->pop();
+                haveNewMedian = true;
+            }
+            bgMedianMatQueuePtr_->releaseLock();
+
+            // Update threshold images when new median available
+            if (haveNewMedian) {
+                cv::add(bgMedianImage_, config_.backgroundThreshold, bgUpperBoundImage_);
+                cv::subtract(bgMedianImage_, config_.backgroundThreshold, bgLowerBoundImage_);
+                bgImageComputed_ = true;
+                printf("Dynamic background model updated at frame %lu\n", frameCount_);
+                fflush(stdout);
+            }
+
+            // If no background computed yet, skip processing this frame
+            if (!bgImageComputed_) {
+                return;
+            }
+        }
+
         // mismatched sizes
         if ((bgMedianImage_.rows != currentImage_.rows) || (bgMedianImage_.cols != currentImage_.cols)
             || bgMedianImage_.type() != currentImage_.type())
         {
             fprintf(stderr, "Background model and current image are not the same size\n");
-			return;
-		}
+            return;
+        }
 
         // Get background/foreground membership, 255=background, 0=foreground
         backgroundSubtraction();

@@ -12,6 +12,9 @@
 #include <QTextStream>
 #include <QProgressBar> // progress bar obsolete, but function is still there
 #include "flytrack_config.hpp"
+#include <QPointer>
+
+class QThreadPool;
 
 namespace cv
 {
@@ -21,6 +24,9 @@ namespace cv
 namespace bias
 {
     class CameraWindow;
+    class BackgroundData_ufmf;
+    class BackgroundHistogram_ufmf;
+    class BackgroundMedian_ufmf;
 
     struct EllipseParams
     {
@@ -72,6 +78,8 @@ namespace bias
             static const unsigned int fish_size_threshold; // Minimum pixel count that identifies a blob as a fish
 			static const float roi_angle; // Angle of the ROI that detects fish in degrees
             bool trigger_pulsed; // Flag making sure trigger is pulsed only in the first frame after a fish leaves the ROI. Refresh after all fish return to ROI
+            static bool computeBackgroundModelDynamically;
+            static unsigned int backgroundUpdateFramePeriod;
             bool trigger;
             bool fishInLeftFeeder;
             bool fishInRightFeeder;
@@ -83,8 +91,13 @@ namespace bias
 	        //static const unsigned int ROI_y;
 	        //static const unsigned int ROI_width;
 	        //static const unsigned int ROI_height;
+            static const unsigned int DYNAMIC_BG_MEDIAN_UPDATE_COUNT; //frames to accumulate for bg comptute
+			static const unsigned int DYNAMIC_BG_MEDIAN_UPDATE_INTERVAL; //interval between bg computes 
+			static const unsigned int DYNAMIC_BG_NUM_THREADS; //number of threads for bg compute
+			bool dynamicModelingStarted_;
 
     	FlyTrackPlugin(QWidget *parent=0);
+		virtual ~FlyTrackPlugin();
             bool pluginsEnabled();
             void setPluginsEnabled(bool value);
             void getUiValues(FlyTrackConfig &config);
@@ -132,6 +145,7 @@ namespace bias
             virtual QString getLogFileFullPath(bool includeAutoNaming);
             virtual void showEvent(QShowEvent *event);
 
+        
         signals:
 
             void setCaptureDurationRequest(unsigned long);
@@ -188,7 +202,19 @@ namespace bias
             cv::Mat bgLowerBoundImage_; // lower bound image for background
             cv::Mat bgUpperBoundImage_; // upper bound image for background
 			bool bgImageComputed_; // flag indicating if background image has been computed
+            void startDynamicBackgroundModeling();
+			void stopDynamicBackgroundModeling();
 
+            QPointer<QThreadPool> bgThreadPoolPtr_; // thread pool for background reading
+			QPointer<BackgroundHistogram_ufmf> bgHistogramPtr_; // background histogram object
+			QPointer<BackgroundMedian_ufmf> bgMedianPtr_; // background median object
+
+			std::shared_ptr<LockableQueue<StampedImage>> bgImageQueuePtr_; // camera frames are pushed from main thread here. Pulled out by bg histogram thread
+			std::shared_ptr<LockableQueue<BackgroundData_ufmf>> bgNewDataQueuePtr_; // new background data pushed here by bg histogram thread. Pulled out by bg median thread
+			std::shared_ptr<LockableQueue<BackgroundData_ufmf>> bgOldDataQueuePtr_; // old background data pushed here by bg histogram thread. Pulled out by bg median thread
+			std::shared_ptr<LockableQueue<cv::Mat>> bgMedianMatQueuePtr_; // median images pushed here by bg median thread. Pulled out by main thread
+
+            bool dynamicBgModelingStarted_;
             BackgroundData_ufmf backgroundData_; // background estimation data
             int lastFrameAdded_; // last frame added to background model
             int nFramesAddedBgEst_; // number of frames added to background model so far
