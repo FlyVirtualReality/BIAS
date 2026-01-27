@@ -94,7 +94,6 @@ namespace bias
             static const unsigned int DYNAMIC_BG_MEDIAN_UPDATE_COUNT; //frames to accumulate for bg comptute
 			static const unsigned int DYNAMIC_BG_MEDIAN_UPDATE_INTERVAL; //interval between bg computes 
 			static const unsigned int DYNAMIC_BG_NUM_THREADS; //number of threads for bg compute
-			bool dynamicModelingStarted_;
 
     	FlyTrackPlugin(QWidget *parent=0);
 		virtual ~FlyTrackPlugin();

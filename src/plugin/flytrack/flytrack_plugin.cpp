@@ -30,8 +30,8 @@ namespace bias
     const unsigned int FlyTrackPlugin::BG_HIST_NUM_BINS = 256;
     const unsigned int FlyTrackPlugin::BG_HIST_BIN_SIZE = 1;
     const double FlyTrackPlugin::MIN_VEL_MATCH_DOTPROD = 0.25;
-	const unsigned int FlyTrackPlugin::DYNAMIC_BG_MEDIAN_UPDATE_COUNT = 100; //frames to accumulate for bg comptute
-	const unsigned int FlyTrackPlugin::DYNAMIC_BG_MEDIAN_UPDATE_INTERVAL = 50; //interval between bg computes
+	const unsigned int FlyTrackPlugin::DYNAMIC_BG_MEDIAN_UPDATE_COUNT = 25; //frames to accumulate for bg comptute
+	const unsigned int FlyTrackPlugin::DYNAMIC_BG_MEDIAN_UPDATE_INTERVAL = 5; //interval between bg computes
 	const unsigned int FlyTrackPlugin::DYNAMIC_BG_NUM_THREADS = 2; //number of threads for bg compute
 
 
@@ -134,8 +134,8 @@ namespace bias
 
     void FlyTrackPlugin::startDynamicBackgroundModeling()
     {
-        if (dynamicModelingStarted_) return;
-		printf("Starting dynamic backgrounde modeling threads\n");
+        if (dynamicBgModelingStarted_) return;
+		printf("Starting dynamic backgroundee modeling threads\n");
 
         //Clewar queues
         bgImageQueuePtr_->clear();
@@ -164,7 +164,7 @@ namespace bias
         // Start workers on thread pool
 		bgThreadPoolPtr_->start(bgHistogramPtr_);
 		bgThreadPoolPtr_->start(bgMedianPtr_);
-		dynamicModelingStarted_ = true;
+		dynamicBgModelingStarted_ = true;
     }
 
     void FlyTrackPlugin::stopDynamicBackgroundModeling()
@@ -268,6 +268,7 @@ namespace bias
 
     void FlyTrackPlugin::processFramesTrackMode(QList<StampedImage> frameList)
     { 
+		static unsigned long framesPushed = 0; // This was only aded for debuggin
         StampedImage latestFrame = frameList.back();
         frameList.clear();
         currentImage_ = latestFrame.image;
@@ -300,19 +301,25 @@ namespace bias
             if (bgImageQueuePtr_->empty()) {
                 bgImageQueuePtr_->push(latestFrame);
                 bgImageQueuePtr_->signalNotEmpty();
+                framesPushed++;
+                if (framesPushed % 2 == 0) {
+					printf("Frames pushed to bg queue: %lu at frame %lu\n", framesPushed, frameCount_);
+                }
             }
             bgImageQueuePtr_->releaseLock();
 
+            
             // Check for new median image from worker (non-blocking)
             bool haveNewMedian = false;
             bgMedianMatQueuePtr_->acquireLock();
             if (!bgMedianMatQueuePtr_->empty()) {
+				printf("haveNewMedian true at frame %lu\n", frameCount_);
                 bgMedianImage_ = bgMedianMatQueuePtr_->front();
                 bgMedianMatQueuePtr_->pop();
                 haveNewMedian = true;
             }
             bgMedianMatQueuePtr_->releaseLock();
-
+            
             // Update threshold images when new median available
             if (haveNewMedian) {
                 cv::add(bgMedianImage_, config_.backgroundThreshold, bgUpperBoundImage_);
