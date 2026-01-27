@@ -132,7 +132,7 @@ namespace bias
         }
     }
 
-    void FlyTrackPlugin::startDynamicBackgroundModeling()
+	void FlyTrackPlugin::startDynamicBackgroundModeling() // copied from video_writer_ufmf.cpp. Might be worth having a shared class in the future
     {
         if (dynamicBgModelingStarted_) return;
 		printf("Starting dynamic backgroundee modeling threads\n");
@@ -167,7 +167,7 @@ namespace bias
 		dynamicBgModelingStarted_ = true;
     }
 
-    void FlyTrackPlugin::stopDynamicBackgroundModeling()
+	void FlyTrackPlugin::stopDynamicBackgroundModeling() // copied from video_writer_ufmf.cpp. Might be worth having a shared class in the future 
     {
         if (!dynamicBgModelingStarted_) return;
 
@@ -296,6 +296,7 @@ namespace bias
                 startDynamicBackgroundModeling();
             }
 
+			// The following lines in the dynamic background computing block are copied from video_writer_ufmf.cpp
             // Push image to queue for background workers (non-blocking)
             bgImageQueuePtr_->acquireLock();
             if (bgImageQueuePtr_->empty()) {
@@ -304,7 +305,7 @@ namespace bias
                 framesPushed++;
                 if (framesPushed % 2 == 0) {
 					printf("Frames pushed to bg queue: %lu at frame %lu\n", framesPushed, frameCount_);
-                }
+                } // TODO: Remove after debugging
             }
             bgImageQueuePtr_->releaseLock();
 
@@ -313,7 +314,7 @@ namespace bias
             bool haveNewMedian = false;
             bgMedianMatQueuePtr_->acquireLock();
             if (!bgMedianMatQueuePtr_->empty()) {
-				printf("haveNewMedian true at frame %lu\n", frameCount_);
+				printf("haveNewMedian true at frame %lu\n", frameCount_); //TODO: Remove after debugging
                 bgMedianImage_ = bgMedianMatQueuePtr_->front();
                 bgMedianMatQueuePtr_->pop();
                 haveNewMedian = true;
@@ -325,7 +326,7 @@ namespace bias
                 cv::add(bgMedianImage_, config_.backgroundThreshold, bgUpperBoundImage_);
                 cv::subtract(bgMedianImage_, config_.backgroundThreshold, bgLowerBoundImage_);
                 bgImageComputed_ = true;
-                printf("Dynamic background model updated at frame %lu\n", frameCount_);
+				printf("Dynamic background model updated at frame %lu\n", frameCount_); //TODO: Remove when building final
                 fflush(stdout);
             }
 
