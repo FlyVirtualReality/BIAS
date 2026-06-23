@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 
 project(stampede_plugin)
 if (POLICY CMP0020)
@@ -36,12 +36,13 @@ qt5_wrap_cpp(stampede_plugin_HEADERS_MOC ${stampede_plugin_HEADERS})
 
 add_library(
     stampede_plugin 
+    ${stampede_plugin_HEADERS}
+    ${stampede_plugin_FORMS}
     ${stampede_plugin_HEADERS_MOC}
     ${stampede_plugin_FORMS_HEADERS}
     ${stampede_plugin_SOURCES} 
     )
 
-add_dependencies(stampede_plugin ${stampede_plugin_FORMS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(.)
 target_link_libraries(stampede_plugin ${QT_LIBRARIES} bias_plugin bias_utility)

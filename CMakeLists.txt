@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8 FATAL_ERROR) 
+cmake_minimum_required(VERSION 3.10 FATAL_ERROR) 
 project(bias)
 
 if (WIN32)
@@ -10,7 +10,6 @@ endif()
 if (POLICY CMP0020) 
     cmake_policy(SET CMP0020 NEW)
 endif()
-cmake_policy(SET CMP0046 OLD)
 
 
 # Options

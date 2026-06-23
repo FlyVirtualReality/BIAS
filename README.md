@@ -123,4 +123,75 @@ Here is how I built BIAS on Windows, May 2024.
 - This builds test_gui.exe, which can be run by double-clicking or from the command line.
     - With the vanilla Qt5 installation, I also had to follow the [Qt Windows Deployment step](https://wiki.qt.io/Deploy_an_Application_on_Windows) and run: `<qt5>\msvc2019_64\bin\windeployqt.exe test_gui.exe`
 
-![screenshot from the Qt5 installer](images/qt5-installer.png)
+![screenshot from the Qt5 installer](images/qt5-inasdasdstaller.png)
+
+#### Notes KB 2026-06-22
+
+Installing dependencies
+- Already had Visual Studio 2022 Community Edition.
+- Installed CMake 4.4.0-rc2
+- Already had /c/Code/opencv4
+- Added C:\Code\opencv4\build\bin\Release to PATH environment variable
+- Installed Spinnaker 2.6.0, selected SDK, added third party and C source, added GigE interface (made a copyin BIAS/resources)
+- Installing Qt 5:
+  - Downloaded the Online installer
+  - Selected Custom
+  - Under Show, selected Archived
+  - Selected Qt for Development -> Qt -> Qt 5.15.2 -> MSVC 2019 64-bit
+- Added C:\Qt\5.15.2\msvc2019_64\bin to PATH environment variable
+
+ CMake compatibility updates needed for CMake 4:
+- Updated all `cmake_minimum_required(VERSION 2.8 FATAL_ERROR)` calls to `VERSION 3.10`.
+- Removed `cmake_policy(SET CMP0046 OLD)`, because CMake 4 no longer supports OLD behavior for CMP0046.
+- Removed invalid `add_dependencies(... ${*_FORMS})` calls where `.ui` files were being treated as CMake targets. The generated UI headers are already included in the target source lists via `qt5_wrap_ui`.
+
+Configure from PowerShell:
+
+```powershell
+cd C:\Code\BIAS
+cmake -S . -B build-vs `
+    -G "Visual Studio 17 2022" `
+    -A x64 `
+    -DOpenCV_DIR=C:\Code\opencv4\build `
+    -DQt5_DIR=C:\Qt\5.15.2\msvc2019_64\lib\cmake\Qt5 `
+    -Dwith_spin=ON `
+    -Dwith_fc2=OFF `
+    -Dwith_dc1394=OFF `
+    -Dwith_qt_gui=ON `
+    -Dwith_video_backend=ON `
+    -Dwith_demos=OFF `
+    -Dwith_tests=OFF
+```
+
+Build:
+`cmake --build build-vs --config Release`
+
+Deploy Qt runtime files next to the executable:
+`C:\Qt\5.15.2\msvc2019_64\bin\windeployqt.exe C:\Code\BIAS\build-vs\Release\test_gui.exe`
+
+Open project in Visual Studio:
+- Open project `BIAS\build-vs\bias.sln`
+- Set configuration to Release | x64
+
+Copy the following DLLs next to test_gui.exe
+OpenCV — from opencv4\build\bin\Release:
+
+opencv_core490.dll
+opencv_imgproc490.dll
+opencv_imgcodecs490.dll
+opencv_videoio490.dll
+opencv_videoio_ffmpeg490_64.dll
+Spinnaker + GenICam — from C:\Program Files\FLIR Systems\Spinnaker\bin64\vs2015:
+
+SpinnakerC_v140.dll
+Spinnaker_v140.dll
+libiomp5md.dll
+GCBase_MD_VC140_v3_0.dll
+GenApi_MD_VC140_v3_0.dll
+Log_MD_VC140_v3_0.dll
+log4cpp_MD_VC140_v3_0.dll
+MathParser_MD_VC140_v3_0.dll
+NodeMapData_MD_VC140_v3_0.dll
+XMLParser_MD_VC140_v3_0.dll
+
+Program was crashing in the StampedePlugin, commented out. 

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 
 project(flytrack_plugin)
 if (POLICY CMP0020)
@@ -30,12 +30,13 @@ qt5_wrap_cpp(flytrack_plugin_HEADERS_MOC ${flytrack_plugin_HEADERS})
 
 add_library(
     flytrack_plugin 
+    ${flytrack_plugin_HEADERS}
+    ${flytrack_plugin_FORMS}
     ${flytrack_plugin_HEADERS_MOC}
     ${flytrack_plugin_FORMS_HEADERS}
     ${flytrack_plugin_SOURCES} 
     )
 
-add_dependencies(flytrack_plugin ${flytrack_plugin_FORMS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(.)
 target_link_libraries(flytrack_plugin ${QT_LIBRARIES} bias_plugin bias_utility bias_camera_facade qcustomplot)

@@ -7,7 +7,7 @@
 
 namespace bias {
 
-    CameraFinder::CameraFinder() 
+    CameraFinder::CameraFinder()
     {
         createQueryContext_fc2();
         createQueryContext_dc1394();
@@ -282,8 +282,8 @@ namespace bias {
         }
     }
 
-    void CameraFinder::update_spin() 
-    { 
+    void CameraFinder::update_spin()
+    {
         // Get camera list and number of cameras
         spinCameraList hCameraList = NULL;
         size_t numCameras = 0;
@@ -318,9 +318,7 @@ namespace bias {
             throw RuntimeError(ERROR_SPIN_CAMERA_LIST_SIZE, ssError.str());
         }
 
-		
-
-        for (int i=0; i<numCameras; i++) 
+        for (int i=0; i<numCameras; i++)
         {
             // Get camera
             spinCamera hCam = nullptr;
@@ -338,12 +336,12 @@ namespace bias {
             }
 
             //Rutuja
-            //Newer spinnaker has different guid and serialNumber. 
+            //Newer spinnaker has different guid and serialNumber.
             //Changed to get serialNumber to grab correct cameraPtr.
             nodeMapTLDevice_ = NodeMapTLDevice_spin(hCam);
             cameraInfo_ = nodeMapTLDevice_.cameraInfo();
             std::string serialNumber = cameraInfo_.serialNumber();
-			
+
 
             // Get GUID from camera
             size_t bufSize = 64;
@@ -356,7 +354,7 @@ namespace bias {
                 ssError << ": unable to get GUID for Spinnaker camera, error=" << error;
                 throw RuntimeError(ERROR_SPIN_GET_CAMERA_GUID, ssError.str());
             }
-            printf("GUID number %s ",serialNumber);
+            printf("GUID number %s ", serialNumber.c_str());
             std::string guidString = std::string(serialNumber);
             guidSet_.insert(Guid(guidString));
 
@@ -369,7 +367,7 @@ namespace bias {
                 ssError << ": unable to get Spinnaker camera, error=" << error;
                 throw RuntimeError(ERROR_SPIN_RELEASE_CAMERA, ssError.str());
             }
-        } 
+        }
 
 
         // Clear Spinnaker camera list

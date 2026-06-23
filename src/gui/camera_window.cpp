@@ -31,6 +31,7 @@
 #include <iostream>
 #include <fstream>
 #include <algorithm>
+#include <cstdio>
 
 #include <QtGui>
 #include <QTimer>
@@ -130,10 +131,21 @@ namespace bias
     // Public methods
     // ----------------------------------------------------------------------------------
 
+    // Optional startup debug logging. Set BIAS_DEBUG_LOGGING to true to enable.
+    // Crash-resistant: opens/closes the file per line so the log survives a hard
+    // crash (useful for diagnosing startup crashes that only occur outside a debugger).
+    static const bool BIAS_DEBUG_LOGGING = false;
+    static void biasDbgCW(const char* m)
+    {
+        if (!BIAS_DEBUG_LOGGING) { return; }
+        FILE* f = fopen("C:/Code/BIAS/build-vs/Release/bias_startup.log", "a");
+        if (f) { fputs(m, f); fputc('\n', f); fclose(f); }
+    }
+
     CameraWindow::CameraWindow(
-            Guid cameraGuid, 
-            unsigned int cameraNumber, 
-            unsigned int numberOfCameras, 
+            Guid cameraGuid,
+            unsigned int cameraNumber,
+            unsigned int numberOfCameras,
             CmdLineParams params,
             QWidget *parent
             ) : QMainWindow(parent)
@@ -2628,7 +2640,8 @@ namespace bias
         // Temporary - plugin development
         // -------------------------------------------------------------------------------
         pluginHandlerPtr_  = new PluginHandler(this);
-        pluginMap_[StampedePlugin::PLUGIN_NAME] = new StampedePlugin(this);
+        // StampedePlugin disabled as it was causing a heap crash
+        //pluginMap_[StampedePlugin::PLUGIN_NAME] = new StampedePlugin(this);
         pluginMap_[GrabDetectorPlugin::PLUGIN_NAME] = new GrabDetectorPlugin(pluginImageLabelPtr_,this);
         pluginMap_[FlyTrackPlugin::PLUGIN_NAME] = new FlyTrackPlugin(this);
         // -------------------------------------------------------------------------------
@@ -2641,7 +2654,7 @@ namespace bias
         setupCaptureDurationTimer();
         setupImageLabels();
         setupPluginMenu();
-        updateAllMenus(); 
+        updateAllMenus();
 
         tabWidgetPtr_->setCurrentWidget(previewTabPtr_);
 

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 
 project(fly_sorter)
 if (POLICY CMP0020)
@@ -62,12 +62,13 @@ qt5_wrap_cpp(fly_sorter_HEADERS_MOC ${fly_sorter_HEADERS})
 
 add_executable(
     fly_sorter
+    ${fly_sorter_HEADERS}
+    ${fly_sorter_FORMS}
     ${fly_sorter_FORMS_HEADERS}
     ${fly_sorter_HEADERS_MOC}
     ${fly_sorter_SOURCES} 
     )
 
-add_dependencies(fly_sorter ${fly_sorter_FORMS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(.)
 target_link_libraries(

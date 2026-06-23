@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 
 if(with_qt_gui)
     project(bias_utility)
@@ -39,6 +39,7 @@ if(with_qt_gui)
     
     add_library(
         bias_utility
+        ${bias_utility_HEADERS}
         ${bias_utility_HEADERS_MOC}
         ${bias_utility_SOURCES} 
         )

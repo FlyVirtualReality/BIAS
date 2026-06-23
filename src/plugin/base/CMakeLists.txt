@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 
 project(bias_plugin)
 if (POLICY CMP0020)
@@ -22,6 +22,8 @@ qt5_wrap_cpp(bias_plugin_HEADERS_MOC ${bias_plugin_HEADERS})
 
 add_library(
     bias_plugin 
+    ${bias_plugin_HEADERS}
+    ../../gui/camera_window.ui
     ${bias_plugin_HEADERS_MOC}
     ${bias_plugin_SOURCES} 
     ${ui_headers}

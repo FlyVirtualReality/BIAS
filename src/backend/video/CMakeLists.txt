@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 
 project(bias_backend_video)
 if (POLICY CMP0020) 
@@ -26,4 +26,3 @@ target_link_libraries(
     Qt5::Core 
     ${bias_ext_link_LIBS} 
     )
-

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 
 if(with_qt_gui)
     project(qcustomplot)
@@ -20,6 +20,7 @@ if(with_qt_gui)
     
     add_library(
         qcustomplot
+        ${qcustomplot_HEADERS}
         ${qcustomplot_HEADERS_MOC}
         ${qcustomplot_SOURCES} 
         )
