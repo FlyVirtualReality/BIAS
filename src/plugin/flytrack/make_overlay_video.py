@@ -177,6 +177,14 @@ def main():
         if e is not None:
             draw_overlay(patch, e, ox=x0, oy=y0, scale=scale)
 
+        # stamp the track/JSON frame number in the top-left corner (white w/ black outline)
+        label = "frame %d" % (i + args.frame_offset)
+        fscale = max(0.5, out_h / 500.0)
+        fth = max(1, int(round(fscale * 1.5)))
+        org = (8, int(round(28 * fscale)))
+        cv2.putText(patch, label, org, cv2.FONT_HERSHEY_SIMPLEX, fscale, (0, 0, 0), fth + 2, cv2.LINE_AA)
+        cv2.putText(patch, label, org, cv2.FONT_HERSHEY_SIMPLEX, fscale, (255, 255, 255), fth, cv2.LINE_AA)
+
         out.write(patch)
         i += 1
         if pbar is not None:
