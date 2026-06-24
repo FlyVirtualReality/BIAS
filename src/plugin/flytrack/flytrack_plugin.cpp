@@ -787,6 +787,7 @@ namespace bias
             historyBufferLengthSpinBox->setValue(config_.historyBufferLength);
             minVelocityMagnitudeLineEdit->setText(QString::number(config_.minVelocityMagnitude));
             headTailWeightVelocityLineEdit->setText(QString::number(config_.headTailWeightVelocity));
+            headTailWeightWingLineEdit->setText(QString::number(config_.headTailWeightWing));
             // wing tracking widgets
             trackWingsCheckBox->setChecked(config_.trackWings);
             mindWingHighSpinBox->setValue(config_.mindWingHigh);
@@ -901,6 +902,7 @@ namespace bias
             config.historyBufferLength = historyBufferLengthSpinBox->value();
             config.minVelocityMagnitude = minVelocityMagnitudeLineEdit->text().toDouble();
             config.headTailWeightVelocity = headTailWeightVelocityLineEdit->text().toDouble();
+            config.headTailWeightWing = headTailWeightWingLineEdit->text().toDouble();
             config.tmpOutDir = tmpOutDirLineEdit->text();
             config.DEBUG = DEBUGCheckBox->isChecked();
             config.tmpTrackFilePath = logFilePathLineEdit->text();

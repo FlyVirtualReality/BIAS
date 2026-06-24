@@ -37,7 +37,7 @@ namespace bias
     const int FlyTrackConfig::DEFAULT_RADIUS_DILATE_BODY = 1;
     const int FlyTrackConfig::DEFAULT_RADIUS_OPEN_WING = 1;
     const int FlyTrackConfig::DEFAULT_WING_RADIUS_QUADFIT_BINS = 1;
-    const double FlyTrackConfig::DEFAULT_HEAD_TAIL_WEIGHT_WING = 2.0;
+    const double FlyTrackConfig::DEFAULT_HEAD_TAIL_WEIGHT_WING = 10.0;
 
 	FlyTrackConfig::FlyTrackConfig()
     {
