@@ -4,6 +4,7 @@
 #include "rtn_status.hpp"
 #include <QVariantMap>
 #include <QColor>
+#include <vector>
 
 
 namespace bias
@@ -44,6 +45,23 @@ namespace bias
             static const bool DEFAULT_DEBUG; // flag for debugging
             static const bool DEFAULT_COMPUTE_BG_MODE; // flag of whether to compute the background (true) when camera is running or track a fly (false)
 
+            // wing tracking defaults
+            static const bool DEFAULT_TRACK_WINGS; // whether to track wings
+            static const int DEFAULT_MINDWING_HIGH; // wing hysteresis high seed threshold on bg difference
+            static const int DEFAULT_MINDWING_LOW; // wing hysteresis low threshold on bg difference
+            static const int DEFAULT_MINDBODY; // body vs wing threshold on bg difference
+            static const double DEFAULT_MAX_WINGPX_ANGLE_DEG; // max angle (deg) of a wing pixel from the rear axis
+            static const double DEFAULT_MIN_NONZERO_WING_ANGLE_DEG; // min |wing angle| (deg) used in same-side rejection
+            static const int DEFAULT_WING_MIN_PEAK_DIST_BINS; // min bin gap between the two histogram peaks
+            static const double DEFAULT_WING_MIN_PEAK_THRESHOLD_FRAC; // min fraction in the primary peak bin
+            static const int DEFAULT_NBINS_DTHETA_WING; // number of wing-angle histogram bins
+            static const double DEFAULT_WING_PEAK_MIN_FRAC_FACTOR; // 2nd-peak threshold = factor / nBins
+            static const int DEFAULT_MIN_SINGLE_WING_AREA; // min wing pixels to attempt a fit / per detected wing
+            static const int DEFAULT_RADIUS_DILATE_BODY; // disk radius for body-mask dilation
+            static const int DEFAULT_RADIUS_OPEN_WING; // disk radius for wing-mask open+close
+            static const int DEFAULT_WING_RADIUS_QUADFIT_BINS; // +/- bins for sub-bin quadratic peak refine
+            static const double DEFAULT_HEAD_TAIL_WEIGHT_WING; // weight of wing fit in head-tail resolution
+
 
             // parameters
             bool computeBgMode; // flag of whether to compute the background (true) when camera is running or track a fly (false)
@@ -65,6 +83,24 @@ namespace bias
             QString trackFileName; // relative name of output track file
             QString tmpTrackFilePath; // absolute path of track file -- not stored in config file
 
+            // wing tracking parameters
+            bool trackWings; // whether to track wings
+            int mindWingHigh; // wing hysteresis high seed threshold on bg difference
+            int mindWingLow; // wing hysteresis low threshold on bg difference
+            int mindBody; // body vs wing threshold on bg difference
+            double maxWingPxAngleDeg; // max angle (deg) of a wing pixel from the rear axis
+            double minNonzeroWingAngleDeg; // min |wing angle| (deg) for same-side rejection
+            int wingMinPeakDistBins; // min bin gap between the two histogram peaks
+            double wingMinPeakThresholdFrac; // min fraction in the primary peak bin
+            int nBinsDThetaWing; // number of wing-angle histogram bins
+            double wingPeakMinFracFactor; // 2nd-peak threshold = factor / nBins
+            int minSingleWingArea; // min wing pixels to attempt a fit / per detected wing
+            int radiusDilateBody; // disk radius for body-mask dilation
+            int radiusOpenWing; // disk radius for wing-mask open+close
+            int wingRadiusQuadfitBins; // +/- bins for sub-bin quadratic peak refine
+            std::vector<double> wingFracFilter; // wing-angle histogram smoothing kernel
+            double headTailWeightWing; // weight of wing fit in head-tail resolution
+
             FlyTrackConfig();
             FlyTrackConfig FlyTrackConfig::copy();
             void setRoiParams(ROIType roiTypeNew, double roiCenterXNew, double roiCenterYNew, double roiRadiusNew);
@@ -73,6 +109,7 @@ namespace bias
             RtnStatus setRoiFromMap(QVariantMap configMap);
             RtnStatus setBgSubFromMap(QVariantMap configMap);
             RtnStatus setHeadTailFromMap(QVariantMap configMap);
+            RtnStatus setWingFromMap(QVariantMap configMap);
             RtnStatus setMiscFromMap(QVariantMap configMap);
             QVariantMap toMap();
             RtnStatus fromMap(QVariantMap configMap);

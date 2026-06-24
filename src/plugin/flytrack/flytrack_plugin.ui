@@ -503,6 +503,232 @@
            </widget>
           </item>
           <item>
+           <widget class="QCheckBox" name="trackWingsCheckBox">
+            <property name="text">
+             <string>Track Wings</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="wingHLayout1">
+            <item>
+             <widget class="QLabel" name="mindWingHighLabel">
+              <property name="layoutDirection"><enum>Qt::RightToLeft</enum></property>
+              <property name="text"><string>Wing High Thresh</string></property>
+              <property name="alignment"><set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="mindWingHighSpinBox">
+              <property name="maximum"><number>255</number></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="mindWingLowLabel">
+              <property name="layoutDirection"><enum>Qt::RightToLeft</enum></property>
+              <property name="text"><string>Wing Low Thresh</string></property>
+              <property name="alignment"><set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="mindWingLowSpinBox">
+              <property name="maximum"><number>255</number></property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="wingHLayout2">
+            <item>
+             <widget class="QLabel" name="mindBodyLabel">
+              <property name="layoutDirection"><enum>Qt::RightToLeft</enum></property>
+              <property name="text"><string>Body Thresh</string></property>
+              <property name="alignment"><set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="mindBodySpinBox">
+              <property name="maximum"><number>255</number></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="maxWingPxAngleLabel">
+              <property name="layoutDirection"><enum>Qt::RightToLeft</enum></property>
+              <property name="text"><string>Max Wing Px Angle (deg)</string></property>
+              <property name="alignment"><set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="maxWingPxAngleLineEdit">
+              <property name="sizePolicy"><sizepolicy hsizetype="Expanding" vsizetype="Preferred"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="wingHLayout3">
+            <item>
+             <widget class="QLabel" name="nBinsDThetaWingLabel">
+              <property name="layoutDirection"><enum>Qt::RightToLeft</enum></property>
+              <property name="text"><string>Num Angle Bins</string></property>
+              <property name="alignment"><set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="nBinsDThetaWingSpinBox">
+              <property name="maximum"><number>10000</number></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="minSingleWingAreaLabel">
+              <property name="layoutDirection"><enum>Qt::RightToLeft</enum></property>
+              <property name="text"><string>Min Wing Area</string></property>
+              <property name="alignment"><set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="minSingleWingAreaSpinBox">
+              <property name="maximum"><number>999999</number></property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="wingHLayout4">
+            <item>
+             <widget class="QLabel" name="wingMinPeakDistBinsLabel">
+              <property name="layoutDirection"><enum>Qt::RightToLeft</enum></property>
+              <property name="text"><string>Min Peak Dist (bins)</string></property>
+              <property name="alignment"><set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="wingMinPeakDistBinsSpinBox">
+              <property name="maximum"><number>10000</number></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="wingPeakMinFracFactorLabel">
+              <property name="layoutDirection"><enum>Qt::RightToLeft</enum></property>
+              <property name="text"><string>2nd Peak Frac Factor</string></property>
+              <property name="alignment"><set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="wingPeakMinFracFactorLineEdit">
+              <property name="sizePolicy"><sizepolicy hsizetype="Expanding" vsizetype="Preferred"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="wingHLayout5">
+            <item>
+             <widget class="QLabel" name="minNonzeroWingAngleLabel">
+              <property name="layoutDirection"><enum>Qt::RightToLeft</enum></property>
+              <property name="text"><string>Min Nonzero Angle (deg)</string></property>
+              <property name="alignment"><set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="minNonzeroWingAngleLineEdit">
+              <property name="sizePolicy"><sizepolicy hsizetype="Expanding" vsizetype="Preferred"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="wingMinPeakThresholdFracLabel">
+              <property name="layoutDirection"><enum>Qt::RightToLeft</enum></property>
+              <property name="text"><string>Min Peak Frac</string></property>
+              <property name="alignment"><set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="wingMinPeakThresholdFracLineEdit">
+              <property name="sizePolicy"><sizepolicy hsizetype="Expanding" vsizetype="Preferred"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="wingHLayout6">
+            <item>
+             <widget class="QLabel" name="radiusDilateBodyLabel">
+              <property name="layoutDirection"><enum>Qt::RightToLeft</enum></property>
+              <property name="text"><string>Body Dilate Radius</string></property>
+              <property name="alignment"><set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="radiusDilateBodySpinBox">
+              <property name="maximum"><number>100</number></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="radiusOpenWingLabel">
+              <property name="layoutDirection"><enum>Qt::RightToLeft</enum></property>
+              <property name="text"><string>Wing Open Radius</string></property>
+              <property name="alignment"><set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="radiusOpenWingSpinBox">
+              <property name="maximum"><number>100</number></property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="wingHLayout7">
+            <item>
+             <widget class="QLabel" name="wingRadiusQuadfitBinsLabel">
+              <property name="layoutDirection"><enum>Qt::RightToLeft</enum></property>
+              <property name="text"><string>Quadfit Radius (bins)</string></property>
+              <property name="alignment"><set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="wingRadiusQuadfitBinsSpinBox">
+              <property name="maximum"><number>100</number></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="headTailWeightWingLabel">
+              <property name="layoutDirection"><enum>Qt::RightToLeft</enum></property>
+              <property name="text"><string>Wing Weight (head/tail)</string></property>
+              <property name="alignment"><set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="headTailWeightWingLineEdit">
+              <property name="sizePolicy"><sizepolicy hsizetype="Expanding" vsizetype="Preferred"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="wingHLayout8">
+            <item>
+             <widget class="QLabel" name="wingFracFilterLabel">
+              <property name="layoutDirection"><enum>Qt::RightToLeft</enum></property>
+              <property name="text"><string>Smoothing Filter (comma-sep)</string></property>
+              <property name="alignment"><set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set></property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="wingFracFilterLineEdit">
+              <property name="sizePolicy"><sizepolicy hsizetype="Expanding" vsizetype="Preferred"><horstretch>0</horstretch><verstretch>0</verstretch></sizepolicy></property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="Line" name="line_wing">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item>
            <layout class="QHBoxLayout" name="horizontalLayout_16">
             <item>
              <widget class="QLabel" name="logFileNameLabel">

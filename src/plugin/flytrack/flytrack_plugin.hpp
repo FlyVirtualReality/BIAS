@@ -24,12 +24,31 @@ namespace bias
 
     struct EllipseParams
     {
-        int frame;
-        double x;
-        double y;
-        double a;
-        double b;
-        double theta;
+        int frame = 0;
+        double x = 0.0;
+        double y = 0.0;
+        double a = 0.0;
+        double b = 0.0;
+        double theta = 0.0;
+        // wing tracking (valid only when wing tracking is enabled / nWingsDetected > 0)
+        double wingAngleL = 0.0;     // left wing angle (rad), relative to theta+pi
+        double wingAngleR = 0.0;     // right wing angle (rad), relative to theta+pi
+        double wingTroughAngle = 0.0;// angle of the trough between the wings (rad)
+        int nWingsDetected = 0;      // 0, 1, or 2
+        double wingAreaL = 0.0;      // left wing pixel area
+        double wingAreaR = 0.0;      // right wing pixel area
+    };
+
+    // Result of fitting wings for one head-orientation hypothesis
+    struct WingFitResult
+    {
+        double angleL;      // smaller (left) wing angle (rad), relative to headTheta+pi
+        double angleR;      // larger (right) wing angle (rad)
+        double troughAngle; // angle of the trough between wings (rad)
+        int nWings;         // 0, 1, or 2
+        double areaL;       // left wing pixel area
+        double areaR;       // right wing pixel area
+        double score;       // # wing pixels retained within the rear window (head/tail discriminator)
     };
 
     // helper functions
@@ -120,8 +139,16 @@ namespace bias
             void updateVelocityHistory();
             void updateOrientationHistory();
             void updateEllipseHistory();
-            void resolveHeadTail();
+            void resolveHeadTail(double wingScoreKeep, double wingScoreFlip, bool wingValid);
             void flipFlyOrientationHistory();
+            // wing tracking
+            void getUiWingValues(FlyTrackConfig& config);
+            void trackWings(); // segment + fit both hypotheses, resolve head/tail, store into flyEllipse_
+            // positive-on-fly background difference (per flyVsBgMode, ROI-masked) over a box
+            void computeBackgroundDiff(const cv::Rect& box, cv::Mat& dBkgdOut);
+            void segmentWingPixels(std::vector<cv::Point>& wingPx); // orientation-independent (computes diff on a box around the fly)
+            static WingFitResult fitWingsFromPixels(const std::vector<cv::Point>& wingPx,
+                double x, double y, double headTheta, const FlyTrackConfig& config); // orientation-dependent
             void logCurrentFrame();
             void finishComputeBgMode();
 
@@ -158,7 +185,9 @@ namespace bias
 			// processing of current frame
             bool isFirst_; // flag indicating if this is the first frame
             cv::Mat isFg_; // foreground mask
+            cv::Mat dBkgd_; // positive-on-fly background difference (reused for wing tracking)
             cv::Mat inROI_; // mask for ROI
+            std::vector<cv::Point> wingPx_; // reusable buffer of wing-pixel coordinates
             EllipseParams flyEllipse_; // fly ellipse parameters
             int lastFramePreviewed_; // last frame shown in preview window
             int lastFrameMedianComputed_; // last frame median computed

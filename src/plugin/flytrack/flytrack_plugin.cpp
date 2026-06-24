@@ -6,6 +6,8 @@
 #include <opencv2/core/core.hpp>
 #include "camera_window.hpp"
 #include <iostream>
+#include <algorithm>
+#include <vector>
 #include "video_utils.hpp"
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -178,11 +180,26 @@ namespace bias
         flyEllipse_.frame = frameCount_;
         fitEllipse(isFg_, flyEllipse_);
 
+        // default wing fields (overwritten by trackWings() when wing tracking is enabled)
+        flyEllipse_.wingAngleL = 0.0;
+        flyEllipse_.wingAngleR = 0.0;
+        flyEllipse_.wingTroughAngle = 0.0;
+        flyEllipse_.nWingsDetected = 0;
+        flyEllipse_.wingAreaL = 0.0;
+        flyEllipse_.wingAreaR = 0.0;
+
         // store velocity
         updateVelocityHistory();
 
-        // resolve head/tail ambiguity
-        resolveHeadTail();
+        // wing tracking (if enabled) runs before head/tail and feeds it a fit score;
+        // trackWings() segments wings, fits both orientation hypotheses, resolves head/tail,
+        // and stores the chosen wing fit into flyEllipse_.
+        if (config_.trackWings) {
+            trackWings();
+        }
+        else {
+            resolveHeadTail(0.0, 0.0, false);
+        }
 
         // store ellipse
         updateEllipseHistory();
@@ -242,6 +259,21 @@ namespace bias
         cv::Point2d head = cv::Point2d(flyEllipse_.x + flyEllipse_.a * std::cos(flyEllipse_.theta),
             			flyEllipse_.y + flyEllipse_.a * std::sin(flyEllipse_.theta));
         cv::drawMarker(currentImageCopy, head, cv::Scalar(255, 0, 0), cv::MARKER_CROSS, 10, 2);
+        // plot wings (lines from the body centroid toward each wing tip, behind the body)
+        if (config_.trackWings && flyEllipse_.nWingsDetected > 0) {
+            double wingLen = 2.0 * flyEllipse_.a;
+            double rear = flyEllipse_.theta + M_PI;
+            double wingAngles[2] = { flyEllipse_.wingAngleL, flyEllipse_.wingAngleR };
+            cv::Point center(clampToInt(flyEllipse_.x), clampToInt(flyEllipse_.y));
+            for (int w = 0; w < 2; w++) {
+                // skip the padded phantom (zero-angle) wing when only one wing is detected
+                if (flyEllipse_.nWingsDetected < 2 && std::abs(wingAngles[w]) < 1e-6) continue;
+                double ang = rear + wingAngles[w];
+                cv::Point tip(clampToInt(flyEllipse_.x + wingLen * std::cos(ang)),
+                              clampToInt(flyEllipse_.y + wingLen * std::sin(ang)));
+                cv::line(currentImageCopy, center, tip, cv::Scalar(0, 255, 0), 1);
+            }
+        }
     }
 
     void FlyTrackPlugin::getCurrentImageComputeBgMode(cv::Mat& currentImageCopy)
@@ -755,6 +787,27 @@ namespace bias
             historyBufferLengthSpinBox->setValue(config_.historyBufferLength);
             minVelocityMagnitudeLineEdit->setText(QString::number(config_.minVelocityMagnitude));
             headTailWeightVelocityLineEdit->setText(QString::number(config_.headTailWeightVelocity));
+            // wing tracking widgets
+            trackWingsCheckBox->setChecked(config_.trackWings);
+            mindWingHighSpinBox->setValue(config_.mindWingHigh);
+            mindWingLowSpinBox->setValue(config_.mindWingLow);
+            mindBodySpinBox->setValue(config_.mindBody);
+            maxWingPxAngleLineEdit->setText(QString::number(config_.maxWingPxAngleDeg));
+            minNonzeroWingAngleLineEdit->setText(QString::number(config_.minNonzeroWingAngleDeg));
+            wingMinPeakDistBinsSpinBox->setValue(config_.wingMinPeakDistBins);
+            wingMinPeakThresholdFracLineEdit->setText(QString::number(config_.wingMinPeakThresholdFrac));
+            nBinsDThetaWingSpinBox->setValue(config_.nBinsDThetaWing);
+            wingPeakMinFracFactorLineEdit->setText(QString::number(config_.wingPeakMinFracFactor));
+            minSingleWingAreaSpinBox->setValue(config_.minSingleWingArea);
+            radiusDilateBodySpinBox->setValue(config_.radiusDilateBody);
+            radiusOpenWingSpinBox->setValue(config_.radiusOpenWing);
+            wingRadiusQuadfitBinsSpinBox->setValue(config_.wingRadiusQuadfitBins);
+            {
+                QStringList wff;
+                for (size_t i = 0; i < config_.wingFracFilter.size(); i++)
+                    wff << QString::number(config_.wingFracFilter[i]);
+                wingFracFilterLineEdit->setText(wff.join(","));
+            }
             logFilePathLineEdit->setText(config_.tmpTrackFilePath);
             logFileNameLineEdit->setText(config_.trackFileName);
             tmpOutDirLineEdit->setText(config_.tmpOutDir);
@@ -813,6 +866,32 @@ namespace bias
         config.nFramesSkipBgEst = nFramesSkipLineEdit->text().toInt();
     }
 
+    void FlyTrackPlugin::getUiWingValues(FlyTrackConfig& config) {
+        config.trackWings = trackWingsCheckBox->isChecked();
+        config.mindWingHigh = mindWingHighSpinBox->value();
+        config.mindWingLow = mindWingLowSpinBox->value();
+        config.mindBody = mindBodySpinBox->value();
+        config.maxWingPxAngleDeg = maxWingPxAngleLineEdit->text().toDouble();
+        config.minNonzeroWingAngleDeg = minNonzeroWingAngleLineEdit->text().toDouble();
+        config.wingMinPeakDistBins = wingMinPeakDistBinsSpinBox->value();
+        config.wingMinPeakThresholdFrac = wingMinPeakThresholdFracLineEdit->text().toDouble();
+        config.nBinsDThetaWing = nBinsDThetaWingSpinBox->value();
+        config.wingPeakMinFracFactor = wingPeakMinFracFactorLineEdit->text().toDouble();
+        config.minSingleWingArea = minSingleWingAreaSpinBox->value();
+        config.radiusDilateBody = radiusDilateBodySpinBox->value();
+        config.radiusOpenWing = radiusOpenWingSpinBox->value();
+        config.wingRadiusQuadfitBins = wingRadiusQuadfitBinsSpinBox->value();
+        // parse comma-separated smoothing filter
+        QStringList parts = wingFracFilterLineEdit->text().split(",", Qt::SkipEmptyParts);
+        std::vector<double> filt;
+        for (int i = 0; i < parts.size(); i++) {
+            bool ok = false;
+            double v = parts[i].trimmed().toDouble(&ok);
+            if (ok) filt.push_back(v);
+        }
+        if (!filt.empty()) config.wingFracFilter = filt;
+    }
+
     void FlyTrackPlugin::getUiValues(FlyTrackConfig& config) {
         try {
             getUiBgEstValues(config);
@@ -826,6 +905,7 @@ namespace bias
             config.DEBUG = DEBUGCheckBox->isChecked();
             config.tmpTrackFilePath = logFilePathLineEdit->text();
             config.trackFileName = logFileNameLineEdit->text();
+            getUiWingValues(config);
         }
         catch (std::exception& e) {
             fflush(stdout);
@@ -977,7 +1057,12 @@ namespace bias
 
     void FlyTrackPlugin::openLogFile()
     {
-        loggingEnabled_ = getCameraWindow() -> isLoggingEnabled();
+        // Write the trajectory file if global Logging is on OR an Output Trajectory File
+        // Name / Absolute Path has been set in the FlyTrack config. The latter lets you
+        // output tracks without enabling Logging (so no video is recorded) -- e.g. when
+        // debugging from a video file.
+        loggingEnabled_ = getCameraWindow() -> isLoggingEnabled()
+                          || config_.trackFileNameSet() || config_.trackFilePathSet();
         if ((config_.computeBgMode == false) && loggingEnabled_)
         {
             QString logFileFullPath = getLogFileFullPath(true);
@@ -1189,7 +1274,13 @@ namespace bias
         if (config_.roiType != NONE) {
             cv::bitwise_and(isFg_, inROI_, isFg_);
         }
+
+        // The graded "positive-on-fly" background difference (dBkgd) used by wing tracking
+        // is computed on a small box around the fly in segmentWingPixels() (via
+        // computeBackgroundDiff), not full-frame here. We only compute the full-frame
+        // version below, when DEBUG is on, for the dBkgd.png debug image.
         if (config_.DEBUG && isFirst_) {
+            computeBackgroundDiff(cv::Rect(0, 0, currentImage_.cols, currentImage_.rows), dBkgd_);
             printf("Outputting background subtraction debug images\n");
             if (!QFile::exists(config_.tmpOutDir)) {
                 try {
@@ -1202,11 +1293,9 @@ namespace bias
             if (QFile::exists(config_.tmpOutDir)) {
                 QString tmpOutFile;
                 bool success;
-                cv::Mat dBkgd;
-                cv::absdiff(currentImage_, bgMedianImage_, dBkgd);
                 tmpOutFile = config_.tmpOutDir + QString("\\dBkgd.png");
                 printf("Writing difference from background to %s\n", tmpOutFile.toStdString().c_str());
-                success = cv::imwrite(tmpOutFile.toStdString(), dBkgd, imwriteParams_);
+                success = cv::imwrite(tmpOutFile.toStdString(), dBkgd_, imwriteParams_);
                 if (!success) printf("Failed writing difference from background to %s\n", tmpOutFile.toStdString().c_str());
                 tmpOutFile = config_.tmpOutDir + QString("\\isFg.png");
                 printf("Writing foreground mask to %s\n", tmpOutFile.toStdString().c_str());
@@ -1305,35 +1394,64 @@ namespace bias
     // resolve head/tail ambiguity by comparing orientation flyEllipse_.theta
     // to velocity meanFlyVelocity_ and past orientation meanFlyOrientation_
     // flyEllipse_.theta is updated 
-    void FlyTrackPlugin::resolveHeadTail() {
+    // wrap an angle to [-pi, pi) (MATLAB modrange(a,-pi,pi); std::fmod alone is not enough for negatives)
+    static double wrapToPi(double a) {
+        double r = std::fmod(a + M_PI, 2.0 * M_PI);
+        if (r < 0.0) r += 2.0 * M_PI;
+        return r - M_PI;
+    }
+
+    void FlyTrackPlugin::resolveHeadTail(double wingScoreKeep, double wingScoreFlip, bool wingValid) {
 
         double velmag = 0.0;
         double dotprod;
         double costVel0 = 0.0, costVel1 = 0.0;
         double costOri0 = 0.0, costOri1 = 0.0;
+        double costWing0 = 0.0, costWing1 = 0.0;
         double cost0 = 0.0, cost1 = 0.0;
-        double theta0 = flyEllipse_.theta;
         cv::Point2d headDir = cv::Point2d(std::cos(flyEllipse_.theta), std::sin(flyEllipse_.theta));
         cv::Point2d headDirPrev = cv::Point2d(0.0, 0.0);
 
-        // velocity magnitude
+        // velocity term
+        bool velConfident = false;
         if (velocityHistory_.size() > 0) velmag = cv::norm(meanFlyVelocity_);
-
-        // if fly is walking fast enough, try to match the velocity direction
         if (velmag > config_.minVelocityMagnitude) {
             dotprod = headDir.dot(meanFlyVelocity_) / velmag;
             costVel1 = dotprod;
             costVel0 = -dotprod;
-            // if we haven't ever resolved headTail, we don't care about orientation history
-            if (!headTailResolved_ && std::abs(dotprod) > MIN_VEL_MATCH_DOTPROD) {
-                if (costVel1 < costVel0) {
-                    // add pi
+            if (std::abs(dotprod) > MIN_VEL_MATCH_DOTPROD) velConfident = true;
+        }
+
+        // wing term: prefer the orientation whose rear half better matches the wing pixels.
+        // costWing0 = keep theta, costWing1 = flip theta+pi. Normalized so neutral (~0.5/0.5)
+        // when there is little wing evidence -> graceful fallback to velocity/orientation.
+        bool wingConfident = false;
+        if (wingValid) {
+            const double eps = 1e-6;
+            double sTot = wingScoreKeep + wingScoreFlip;
+            double sKeep = (wingScoreKeep + eps) / (sTot + 2.0 * eps);
+            double sFlip = 1.0 - sKeep;
+            costWing0 = -sKeep;
+            costWing1 = -sFlip;
+            if (sTot >= (double)config_.minSingleWingArea && std::abs(sKeep - sFlip) > MIN_VEL_MATCH_DOTPROD)
+                wingConfident = true;
+        }
+
+        // before head/tail has ever been resolved, ignore orientation history; resolve from
+        // velocity + wings if either is confident (wings let a stationary fly resolve too).
+        if (!headTailResolved_) {
+            cost0 = config_.headTailWeightVelocity * costVel0 + config_.headTailWeightWing * costWing0;
+            cost1 = config_.headTailWeightVelocity * costVel1 + config_.headTailWeightWing * costWing1;
+            if (velConfident || wingConfident) {
+                if (cost1 < cost0) {
                     flyEllipse_.theta += M_PI;
                     flipFlyOrientationHistory();
                 }
                 headTailResolved_ = true;
+                flyEllipse_.theta = mod2pi(flyEllipse_.theta);
                 return;
             }
+            // not confident yet -- fall through to also use orientation history (~current orientation)
         }
 
         // try to match current and previous orientation
@@ -1345,9 +1463,8 @@ namespace bias
             costOri0 = -dotprod;
         }
 
-        cost0 = config_.headTailWeightVelocity * costVel0 + costOri0;
-        cost1 = config_.headTailWeightVelocity * costVel1 + costOri1;
-        //printf("Total cost0: %f, cost1: %f\n", cost0, cost1);
+        cost0 = config_.headTailWeightVelocity * costVel0 + config_.headTailWeightWing * costWing0 + costOri0;
+        cost1 = config_.headTailWeightVelocity * costVel1 + config_.headTailWeightWing * costWing1 + costOri1;
 
         if (cost1 < cost0) {
             // add pi
@@ -1356,6 +1473,321 @@ namespace bias
 
         // store theta in range -pi, pi
         flyEllipse_.theta = mod2pi(flyEllipse_.theta);
+    }
+
+    // Segment wing pixels from the (positive-on-fly) background difference. Orientation-
+    // independent, runs once per frame. Mirrors TrackWings_BackSub.m.
+    // Compute the positive-on-fly background difference (per flyVsBgMode), ROI-masked, over
+    // the given box. CV_8U; saturating subtract clamps negatives to 0 (matches simplewing,
+    // which only thresholds positive differences). Used for the small wing box and, full-
+    // frame, for the DEBUG dBkgd.png image.
+    void FlyTrackPlugin::computeBackgroundDiff(const cv::Rect& box, cv::Mat& dBkgdOut) {
+        cv::Mat imBox = currentImage_(box);
+        cv::Mat bgBox = bgMedianImage_(box);
+        switch (config_.flyVsBgMode) {
+        case FLY_DARKER_THAN_BG:
+            cv::subtract(bgBox, imBox, dBkgdOut);
+            break;
+        case FLY_BRIGHTER_THAN_BG:
+            cv::subtract(imBox, bgBox, dBkgdOut);
+            break;
+        case FLY_ANY_DIFFERENCE_BG:
+            cv::absdiff(imBox, bgBox, dBkgdOut);
+            break;
+        }
+        if (config_.roiType != NONE) {
+            cv::bitwise_and(dBkgdOut, inROI_(box), dBkgdOut);
+        }
+    }
+
+    void FlyTrackPlugin::segmentWingPixels(std::vector<cv::Point>& wingPx) {
+        wingPx.clear();
+        if (currentImage_.empty() || bgMedianImage_.empty()) return;
+        if (flyEllipse_.a <= 0.0) return; // no valid body -> no wings
+
+        int rb = std::max(1, config_.radiusDilateBody);
+        int rw = std::max(1, config_.radiusOpenWing);
+
+        // For speed, segment wings only within a bounding box around the pre-tracked fly
+        // (body + wings) instead of the whole frame. Wings trail the centroid by ~a body
+        // length, so a half-width of a few * a contains them. Raise WING_BBOX_A_FACTOR if
+        // wings ever get clipped. The +margin leaves room for the morphology kernels.
+        const double WING_BBOX_A_FACTOR = 5.0;
+        int margin = rb + rw + 2;
+        int half = (int)std::ceil(WING_BBOX_A_FACTOR * flyEllipse_.a) + margin;
+        int cx = (int)std::lround(flyEllipse_.x);
+        int cy = (int)std::lround(flyEllipse_.y);
+        int x0 = std::max(0, cx - half);
+        int y0 = std::max(0, cy - half);
+        int x1 = std::min(currentImage_.cols, cx + half + 1);
+        int y1 = std::min(currentImage_.rows, cy + half + 1);
+        if (x1 <= x0 || y1 <= y0) return;
+        cv::Rect box(x0, y0, x1 - x0, y1 - y0);
+        cv::Mat d; // background difference computed on just this box
+        computeBackgroundDiff(box, d);
+
+        cv::Mat seBody = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(2 * rb + 1, 2 * rb + 1));
+        cv::Mat seWing = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(2 * rw + 1, 2 * rw + 1));
+
+        // body mask (dilated)
+        cv::Mat isBodyThresh = d >= config_.mindBody; // CV_8U 0/255
+        cv::Mat isBody;
+        cv::dilate(isBodyThresh, isBody, seBody);
+        cv::Mat notBody;
+        cv::bitwise_not(isBody, notBody);
+
+        // wing hysteresis seeds/mask, excluding (dilated) body
+        cv::Mat wingHighThresh = d >= config_.mindWingHigh;
+        cv::Mat wingLowThresh = d >= config_.mindWingLow;
+        cv::Mat wingHigh, wingLow;
+        cv::bitwise_and(wingHighThresh, notBody, wingHigh);
+        cv::bitwise_and(wingLowThresh, notBody, wingLow);
+
+        // morphological reconstruction (imreconstruct, 4-conn): keep wingLow components
+        // that contain at least one high-threshold seed pixel
+        cv::Mat labels;
+        int nLabels = cv::connectedComponents(wingLow, labels, 4, CV_32S);
+        cv::Mat iswing = cv::Mat::zeros(d.size(), CV_8U);
+        if (nLabels > 1) {
+            std::vector<unsigned char> keep(nLabels, 0);
+            for (int yy = 0; yy < wingHigh.rows; yy++) {
+                const unsigned char* hp = wingHigh.ptr<unsigned char>(yy);
+                const int* lp = labels.ptr<int>(yy);
+                for (int xx = 0; xx < wingHigh.cols; xx++)
+                    if (hp[xx] && lp[xx] > 0) keep[lp[xx]] = 1;
+            }
+            for (int yy = 0; yy < iswing.rows; yy++) {
+                const int* lp = labels.ptr<int>(yy);
+                unsigned char* wp = iswing.ptr<unsigned char>(yy);
+                for (int xx = 0; xx < iswing.cols; xx++)
+                    if (lp[xx] > 0 && keep[lp[xx]]) wp[xx] = 255;
+            }
+        }
+        cv::morphologyEx(iswing, iswing, cv::MORPH_OPEN, seWing);
+        cv::morphologyEx(iswing, iswing, cv::MORPH_CLOSE, seWing);
+
+        // single fly: all wing-mask pixels belong to this fly.
+        // findNonZero gives patch-local coords -> offset back to full-image coords.
+        if (cv::countNonZero(iswing) > 0) {
+            std::vector<cv::Point> pts;
+            cv::findNonZero(iswing, pts);
+            wingPx.reserve(pts.size());
+            for (size_t i = 0; i < pts.size(); i++)
+                wingPx.push_back(cv::Point(pts[i].x + box.x, pts[i].y + box.y));
+        }
+    }
+
+    // Fit wings from the wing-pixel set for one head-orientation hypothesis (headTheta = head).
+    // Orientation-dependent, cheap, run once per hypothesis. Mirrors TrackWings_FitWings_Peak.m.
+    WingFitResult FlyTrackPlugin::fitWingsFromPixels(const std::vector<cv::Point>& wingPx,
+        double x, double y, double headTheta, const FlyTrackConfig& config) {
+        WingFitResult r;
+        r.angleL = 0.0; r.angleR = 0.0; r.troughAngle = 0.0;
+        r.nWings = 0; r.areaL = 0.0; r.areaR = 0.0; r.score = 0.0;
+
+        const double maxAngle = config.maxWingPxAngleDeg * M_PI / 180.0;
+        const double minNonzero = config.minNonzeroWingAngleDeg * M_PI / 180.0;
+        const double rear = headTheta + M_PI;
+        const int nBins = std::max(1, config.nBinsDThetaWing);
+
+        // 1. per-pixel bearings relative to the rear axis; keep those within the rear window
+        std::vector<double> dth;
+        dth.reserve(wingPx.size());
+        for (size_t i = 0; i < wingPx.size(); i++) {
+            double d = wrapToPi(std::atan2((double)wingPx[i].y - y, (double)wingPx[i].x - x) - rear);
+            if (std::abs(d) <= maxAngle) dth.push_back(d);
+        }
+        const int nwingpx = (int)dth.size();
+        r.score = (double)nwingpx; // head/tail discriminator
+        if (nwingpx <= config.minSingleWingArea) return r; // too few wing pixels (MATLAB: locs sought only if > )
+
+        // 2. normalized histogram (with histc last-bin fold) + smoothing
+        const double binWidth = (2.0 * maxAngle) / nBins;
+        std::vector<double> frac(nBins, 0.0), centers(nBins, 0.0);
+        for (int i = 0; i < nwingpx; i++) {
+            int b = (int)std::floor((dth[i] + maxAngle) / binWidth);
+            if (b < 0) b = 0;
+            if (b >= nBins) b = nBins - 1;
+            frac[b] += 1.0;
+        }
+        for (int b = 0; b < nBins; b++) { frac[b] /= (double)nwingpx; centers[b] = -maxAngle + (b + 0.5) * binWidth; }
+        const std::vector<double>& filt = config.wingFracFilter;
+        const int fLen = (int)filt.size();
+        const int fHalf = fLen / 2;
+        std::vector<double> sf(nBins, 0.0);
+        for (int b = 0; b < nBins; b++) {
+            double s = 0.0;
+            for (int k = 0; k < fLen; k++) {
+                int idx = b + k - fHalf;
+                if (idx >= 0 && idx < nBins) s += frac[idx] * filt[k];
+            }
+            sf[b] = s;
+        }
+
+        // 3. find up to two peaks (0-based bins)
+        int loc1 = 0; double pk = sf[0];
+        for (int b = 1; b < nBins; b++) if (sf[b] > pk) { pk = sf[b]; loc1 = b; }
+        if (pk < config.wingMinPeakThresholdFrac) return r; // no primary peak -> 0 wings
+        int loc2 = -1;
+        {
+            int bestb = -1; double bestv = -1.0;
+            for (int b = 0; b < nBins; b++) {
+                bool gtLeft = (b == 0) || (sf[b] > sf[b - 1]);
+                bool geRight = (b == nBins - 1) || (sf[b] >= sf[b + 1]);
+                if (!(gtLeft && geRight)) continue;                       // local maximum
+                if (b >= loc1 - config.wingMinPeakDistBins && b <= loc1 + config.wingMinPeakDistBins) continue;
+                if (sf[b] > bestv) { bestv = sf[b]; bestb = b; }
+            }
+            double peak2MinFrac = config.wingPeakMinFracFactor / (double)nBins;
+            if (bestb >= 0 && bestv >= peak2MinFrac) loc2 = bestb;
+        }
+
+        std::vector<double> wingAngles, area;
+        int npeaks;
+        double troughAngle = 0.0;
+
+        if (loc2 < 0) {
+            // single peak: angle = median of bearings
+            std::vector<double> tmp = dth;
+            std::sort(tmp.begin(), tmp.end());
+            double med = (nwingpx % 2 == 1) ? tmp[nwingpx / 2]
+                                            : 0.5 * (tmp[nwingpx / 2 - 1] + tmp[nwingpx / 2]);
+            wingAngles.push_back(med);
+            area.push_back((double)nwingpx);
+            npeaks = 1;
+            troughAngle = med;
+        } else {
+            // two peaks
+            npeaks = 2;
+            wingAngles.push_back(centers[loc1]);
+            wingAngles.push_back(centers[loc2]);
+            int locs[2] = { loc1, loc2 };
+            int radius = config.wingRadiusQuadfitBins;
+            for (int j = 0; j < 2; j++) {
+                std::vector<int> xs;
+                for (int d = -radius; d <= radius; d++) {
+                    int xb = locs[j] + d;
+                    if (xb >= 0 && xb < nBins) xs.push_back(xb);
+                }
+                int ncurr = (int)xs.size();
+                if (ncurr < 3) continue;
+                cv::Mat X(ncurr, 3, CV_64F), yv(ncurr, 1, CV_64F);
+                for (int i = 0; i < ncurr; i++) {
+                    double xb = (double)xs[i];
+                    X.at<double>(i, 0) = 1.0; X.at<double>(i, 1) = xb; X.at<double>(i, 2) = xb * xb;
+                    yv.at<double>(i, 0) = sf[xs[i]];
+                }
+                cv::Mat coeffs;
+                if (!cv::solve(X, yv, coeffs, cv::DECOMP_SVD)) continue;
+                double c2 = coeffs.at<double>(1, 0), c3 = coeffs.at<double>(2, 0);
+                if (c3 >= 0) continue; // must be concave
+                double maxx = -c2 / (2.0 * c3);
+                if (std::abs(maxx - locs[j]) > 1.0 || maxx > nBins - 1 || maxx < 0) continue;
+                int fl = (int)std::floor(maxx);
+                int cl = (int)std::ceil(maxx);
+                if (fl < 0) fl = 0; if (cl > nBins - 1) cl = nBins - 1;
+                double wceil = maxx - std::floor(maxx);
+                wingAngles[j] = centers[fl] * (1.0 - wceil) + wceil * centers[cl];
+            }
+
+            // can't have two wings on the same side of the body
+            if (((wingAngles[0] >= 0.0) == (wingAngles[1] >= 0.0)) &&
+                std::min(std::abs(wingAngles[0]), std::abs(wingAngles[1])) >= minNonzero) {
+                wingAngles.pop_back();
+                area.push_back((double)nwingpx);
+                npeaks = 1;
+            } else {
+                // trough between the two peaks (1-based port of TrackWings_FitWings_Peak.m:89-115)
+                int minloc = std::min(loc1, loc2) + 1;
+                int maxloc = std::max(loc1, loc2) + 1;
+                auto SF = [&](int i1) { int idx = i1 - 1; if (idx < 0) idx = 0; if (idx >= nBins) idx = nBins - 1; return sf[idx]; };
+                auto CTR = [&](int i1) { int idx = i1 - 1; if (idx < 0) idx = 0; if (idx >= nBins) idx = nBins - 1; return centers[idx]; };
+                int troughloc = minloc; double tmin = SF(minloc);
+                for (int i = minloc; i <= maxloc; i++) if (SF(i) < tmin) { tmin = SF(i); troughloc = i; }
+                int j_last = -1;
+                for (int i = minloc; i <= troughloc; i++) if (SF(i) > SF(troughloc)) j_last = (i - minloc + 1);
+                double loc1b = (j_last < 0) ? (double)troughloc : (double)(j_last + minloc);
+                int j_first = -1;
+                for (int i = troughloc; i <= maxloc; i++) if (SF(i) > SF(troughloc)) { j_first = (i - troughloc + 1); break; }
+                double loc2b = (j_first < 0) ? (double)troughloc : (double)(j_first + troughloc - 2);
+                double troughF = (loc1b + loc2b) / 2.0;
+                double areaFrac;
+                if (std::fmod(troughF, 1.0) > 0.0) {
+                    int k = (int)(troughF - 0.5);
+                    double s = 0.0; for (int i = 1; i <= k; i++) s += SF(i);
+                    areaFrac = s;
+                    troughAngle = (CTR((int)(troughF - 0.5)) + CTR((int)(troughF + 0.5))) / 2.0;
+                } else {
+                    int T = (int)troughF;
+                    double s = 0.0; for (int i = 1; i <= T - 1; i++) s += SF(i);
+                    s += SF(T) / 2.0;
+                    areaFrac = s;
+                    troughAngle = CTR(T);
+                }
+                area.push_back(areaFrac * nwingpx);
+                area.push_back((1.0 - areaFrac) * nwingpx);
+
+                if (area[0] < config.minSingleWingArea && area[1] < config.minSingleWingArea) {
+                    wingAngles.clear(); wingAngles.push_back(0.0);
+                    area.clear(); area.push_back(0.0);
+                    npeaks = 0; troughAngle = 0.0;
+                } else if (area[0] < config.minSingleWingArea) {
+                    int removei = (wingAngles[0] <= wingAngles[1]) ? 0 : 1; // remove min-angle wing
+                    wingAngles.erase(wingAngles.begin() + removei);
+                    area.erase(area.begin());                                // drop area(1)
+                    npeaks = 1;
+                } else if (area[1] < config.minSingleWingArea) {
+                    int removei = (wingAngles[0] >= wingAngles[1]) ? 0 : 1; // remove max-angle wing
+                    wingAngles.erase(wingAngles.begin() + removei);
+                    area.erase(area.begin() + 1);                            // drop area(2)
+                    npeaks = 1;
+                }
+            }
+        }
+
+        // sort ascending; pad single-wing result to two entries
+        std::sort(wingAngles.begin(), wingAngles.end());
+        if ((int)wingAngles.size() == 1) {
+            double a0 = wingAngles[0];
+            double ar0 = area.empty() ? 0.0 : area[0];
+            if (std::abs(a0) > minNonzero) {
+                troughAngle = 0.0;
+                if (0.0 <= a0) { wingAngles = { 0.0, a0 }; area = { 0.0, ar0 }; }
+                else { wingAngles = { a0, 0.0 }; area = { ar0, 0.0 }; }
+            } else {
+                wingAngles = { a0, a0 };
+                area = { ar0, ar0 };
+            }
+        }
+
+        r.angleL = wingAngles[0];
+        r.angleR = wingAngles[1];
+        r.nWings = npeaks;
+        r.areaL = area[0];
+        r.areaR = area[1];
+        r.troughAngle = troughAngle;
+        return r;
+    }
+
+    // Segment wings once, fit both head-orientation hypotheses, resolve head/tail using the
+    // wing scores (+ velocity/orientation), and store the chosen fit into flyEllipse_.
+    void FlyTrackPlugin::trackWings() {
+        double theta0 = flyEllipse_.theta;
+        segmentWingPixels(wingPx_);
+        WingFitResult wfKeep = fitWingsFromPixels(wingPx_, flyEllipse_.x, flyEllipse_.y, theta0, config_);
+        WingFitResult wfFlip = fitWingsFromPixels(wingPx_, flyEllipse_.x, flyEllipse_.y, theta0 + M_PI, config_);
+
+        resolveHeadTail(wfKeep.score, wfFlip.score, true);
+
+        // pick the fit matching the resolved orientation (flipped if theta moved ~pi from theta0)
+        bool flipped = std::abs(mod2pi(flyEllipse_.theta - theta0)) > (M_PI / 2.0);
+        const WingFitResult& wf = flipped ? wfFlip : wfKeep;
+        flyEllipse_.wingAngleL = wf.angleL;
+        flyEllipse_.wingAngleR = wf.angleR;
+        flyEllipse_.wingTroughAngle = wf.troughAngle;
+        flyEllipse_.nWingsDetected = wf.nWings;
+        flyEllipse_.wingAreaL = wf.areaL;
+        flyEllipse_.wingAreaR = wf.areaR;
     }
 
     void FlyTrackPlugin::logCurrentFrame(){
@@ -1549,7 +1981,13 @@ namespace bias
         json += QString("\"y\": %1,").arg(ell.y);
         json += QString("\"a\": %1,").arg(ell.a);
         json += QString("\"b\": %1,").arg(ell.b);
-        json += QString("\"theta\": %1").arg(ell.theta);
+        json += QString("\"theta\": %1,").arg(ell.theta);
+        json += QString("\"wing_anglel\": %1,").arg(ell.wingAngleL);
+        json += QString("\"wing_angler\": %1,").arg(ell.wingAngleR);
+        json += QString("\"wing_trough_angle\": %1,").arg(ell.wingTroughAngle);
+        json += QString("\"nwings\": %1,").arg(ell.nWingsDetected);
+        json += QString("\"wing_areal\": %1,").arg(ell.wingAreaL);
+        json += QString("\"wing_arear\": %1").arg(ell.wingAreaR);
         json += QString("}");
         return json;
     }
