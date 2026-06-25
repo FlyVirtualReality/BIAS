@@ -33,11 +33,32 @@ int main (int argc, char *argv[])
 		QStringList() << "c" << "config",
 		QString("Load configuration from <config-file>"),
 		QString("config-file")));
+    // -s <start-frame> or --start-frame <start-frame>
+    // when reading from a video, start tracking from this frame instead of the beginning
+    parser.addOption(QCommandLineOption(
+		QStringList() << "s" << "start-frame",
+		QString("Start tracking from video frame <start-frame> (video input only)"),
+		QString("start-frame")));
+    // -o <out-track-file> or --out-track <out-track-file>
+    // output trajectory file path (overrides the value in the config)
+    parser.addOption(QCommandLineOption(
+		QStringList() << "o" << "out-track",
+		QString("Write the trajectory to <out-track-file> (overrides config)"),
+		QString("out-track-file")));
+    // --debug-seg-all-frames
+    // dump the wing-segmentation debug image for every frame (default: first frame only;
+    // requires DEBUG enabled in the config). Run short segments -- one PNG per frame.
+    parser.addOption(QCommandLineOption(
+		QStringList() << "debug-seg-all-frames",
+		QString("Dump wing-segmentation debug image every frame (default: first frame only)")));
 
     parser.process(app);
     bias::CmdLineParams params;
     params.inVideoFile = parser.value("in-video");
     params.configFile = parser.value("config");
+    params.startFrame = parser.value("start-frame").toInt(); // 0 if not provided
+    params.trajectoryFile = parser.value("out-track");
+    params.debugSegAllFrames = parser.isSet("debug-seg-all-frames");
 
 
     bias::GuidList guidList;

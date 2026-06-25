@@ -49,6 +49,9 @@ namespace bias
     {
 		QString inVideoFile;
 		QString configFile;
+		int startFrame = 0; // video frame to start tracking from (video input only)
+		QString trajectoryFile; // output trajectory file path (overrides config)
+		bool debugSegAllFrames = false; // dump wing segmentation every frame (default: first frame only)
 	};
 
     class CameraWindow : public QMainWindow, private Ui::CameraWindow
@@ -312,6 +315,7 @@ namespace bias
 
             QString captureVideoFileName_;
             bool doCaptureFromVideo_;
+            int captureStartFrame_; // video frame to start tracking from (video input only)
 
             void connectWidgets();
             void initialize(

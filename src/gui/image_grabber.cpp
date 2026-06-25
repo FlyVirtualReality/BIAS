@@ -62,6 +62,7 @@ namespace bias {
         // read from video instead
         isVideo_ = false;
         vidFileName_ = QString("");
+        startFrame_ = 0;
 
     }
 
@@ -70,6 +71,9 @@ namespace bias {
     }
     void ImageGrabber::setVideoFileName(QString captureVideoFileName) {
         vidFileName_ = captureVideoFileName;
+    }
+    void ImageGrabber::setStartFrame(int f) {
+        startFrame_ = (f > 0) ? f : 0;
     }
 
     void ImageGrabber::initializeVidBackend()
@@ -133,6 +137,13 @@ namespace bias {
         // Start image capture
         if (isVideo_) {
             initializeVidBackend();
+            if (startFrame_ > 0) {
+                // seek the video and number frames so JSON frame ~ video frame index
+                // (same -2 startup-skip convention as a full run). NB: seeking is only as
+                // accurate as the codec allows (may snap to the nearest keyframe).
+                vidObj_->setFrame(startFrame_);
+                frameCount = (unsigned long)startFrame_;
+            }
         }
         else {
             cameraPtr_->acquireLock();

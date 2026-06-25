@@ -827,6 +827,17 @@ namespace bias
 		return rtnStatus;
 	}
 
+    // Set the output trajectory file path (e.g. from the command line). Sets the absolute
+    // path so the trajectory is written there (and openLogFile triggers without Logging).
+    void FlyTrackPlugin::setTrajectoryFileName(QString path) {
+        config_.tmpTrackFilePath = path;
+        logFilePathLineEdit->setText(path);
+    }
+
+    void FlyTrackPlugin::setDebugSegAllFrames(bool value) {
+        debugSegAllFrames_ = value;
+    }
+
     bool FlyTrackPlugin::saveBgMedianImage(cv::Mat bgMedianImage, QString bgImageFilePath) {
         try {
             printf("Saving median image to %s\n", bgImageFilePath.toStdString().c_str());
@@ -1439,11 +1450,17 @@ namespace bias
                 wingConfident = true;
         }
 
+        // diagnostics: unweighted velocity + wing component costs
+        flyEllipse_.htVelKeep = costVel0; flyEllipse_.htVelFlip = costVel1;
+        flyEllipse_.htWingKeep = costWing0; flyEllipse_.htWingFlip = costWing1;
+
         // before head/tail has ever been resolved, ignore orientation history; resolve from
         // velocity + wings if either is confident (wings let a stationary fly resolve too).
         if (!headTailResolved_) {
             cost0 = config_.headTailWeightVelocity * costVel0 + config_.headTailWeightWing * costWing0;
             cost1 = config_.headTailWeightVelocity * costVel1 + config_.headTailWeightWing * costWing1;
+            flyEllipse_.htOriKeep = costOri0; flyEllipse_.htOriFlip = costOri1; // 0 in bootstrap
+            flyEllipse_.htCostKeep = cost0; flyEllipse_.htCostFlip = cost1;
             if (velConfident || wingConfident) {
                 if (cost1 < cost0) {
                     flyEllipse_.theta += M_PI;
@@ -1467,6 +1484,8 @@ namespace bias
 
         cost0 = config_.headTailWeightVelocity * costVel0 + config_.headTailWeightWing * costWing0 + costOri0;
         cost1 = config_.headTailWeightVelocity * costVel1 + config_.headTailWeightWing * costWing1 + costOri1;
+        flyEllipse_.htOriKeep = costOri0; flyEllipse_.htOriFlip = costOri1;
+        flyEllipse_.htCostKeep = cost0; flyEllipse_.htCostFlip = cost1;
 
         if (cost1 < cost0) {
             // add pi
@@ -1486,17 +1505,28 @@ namespace bias
     void FlyTrackPlugin::computeBackgroundDiff(const cv::Rect& box, cv::Mat& dBkgdOut) {
         cv::Mat imBox = currentImage_(box);
         cv::Mat bgBox = bgMedianImage_(box);
+        // Normalize the difference by the local background brightness (relative/fractional
+        // difference) so the wing thresholds are invariant to the strong illumination
+        // gradient across the arena (bright center vs. dim edge). This is a backlit setup --
+        // the fly attenuates transmitted light multiplicatively -- so (bg-im)/bg is the
+        // fraction of light absorbed, ~constant for the same fly regardless of local
+        // brightness. Scaled by 255 so dBkgd stays in 0..255 (now "fraction absorbed * 255").
+        // Divide-by-zero (bg=0 at corners/outside ROI) -> 0. NOTE: this is wing-tracking only;
+        // the body ellipse uses a separate absolute-threshold path. The wing thresholds
+        // (mindBody / mindWing*) are therefore on this normalized scale, not raw counts.
+        cv::Mat diff;
         switch (config_.flyVsBgMode) {
         case FLY_DARKER_THAN_BG:
-            cv::subtract(bgBox, imBox, dBkgdOut);
+            cv::subtract(bgBox, imBox, diff);
             break;
         case FLY_BRIGHTER_THAN_BG:
-            cv::subtract(imBox, bgBox, dBkgdOut);
+            cv::subtract(imBox, bgBox, diff);
             break;
         case FLY_ANY_DIFFERENCE_BG:
-            cv::absdiff(imBox, bgBox, dBkgdOut);
+            cv::absdiff(imBox, bgBox, diff);
             break;
         }
+        cv::divide(diff, bgBox, dBkgdOut, 255.0, CV_8U); // 255*(diff)/bg, /0 -> 0
         if (config_.roiType != NONE) {
             cv::bitwise_and(dBkgdOut, inROI_(box), dBkgdOut);
         }
@@ -1577,6 +1607,38 @@ namespace bias
             for (size_t i = 0; i < pts.size(); i++)
                 wingPx.push_back(cv::Point(pts[i].x + box.x, pts[i].y + box.y));
         }
+
+        // DEBUG: dump a visualization of the wing/body segmentation so the thresholds can be
+        // inspected (filename has the frame number). Over the raw image box (4x, nearest):
+        // body (>=mindBody, dilated) = red; wing pixels actually used = green; yellow = body
+        // axis + centroid. By default only the first tracked frame is dumped; pass
+        // --debug-seg-all-frames to dump every frame (run short segments -- one PNG/frame).
+        if (config_.DEBUG && (debugSegAllFrames_ || isFirst_) && !config_.tmpOutDir.isEmpty()) {
+            cv::Mat vis;
+            cv::cvtColor(currentImage_(box), vis, cv::COLOR_GRAY2BGR);
+            for (int yy = 0; yy < vis.rows; yy++) {
+                const unsigned char* bp = isBody.ptr<unsigned char>(yy);
+                const unsigned char* wp = iswing.ptr<unsigned char>(yy);
+                cv::Vec3b* vp = vis.ptr<cv::Vec3b>(yy);
+                for (int xx = 0; xx < vis.cols; xx++) {
+                    if (wp[xx]) vp[xx] = cv::Vec3b(0, 200, 0);       // green: wing
+                    else if (bp[xx]) vp[xx] = cv::Vec3b(0, 0, 255);  // red: body
+                }
+            }
+            const int SC = 4;
+            cv::resize(vis, vis, cv::Size(), SC, SC, cv::INTER_NEAREST);
+            double cxv = SC * (flyEllipse_.x - box.x), cyv = SC * (flyEllipse_.y - box.y);
+            double axx = std::cos(flyEllipse_.theta), axy = std::sin(flyEllipse_.theta);
+            double L = SC * 3.0 * flyEllipse_.a;
+            cv::line(vis, cv::Point((int)(cxv - L * axx), (int)(cyv - L * axy)),
+                     cv::Point((int)(cxv + L * axx), (int)(cyv + L * axy)),
+                     cv::Scalar(255, 255, 0), 1, cv::LINE_AA);
+            cv::circle(vis, cv::Point((int)cxv, (int)cyv), 3, cv::Scalar(255, 255, 0), -1);
+            QString dbgDir = config_.tmpOutDir + QString("\\wingseg");
+            if (!QFile::exists(dbgDir)) QDir().mkdir(dbgDir);
+            QString fpath = dbgDir + QString("\\wingseg_%1.png").arg(flyEllipse_.frame, 6, 10, QChar('0'));
+            cv::imwrite(fpath.toStdString(), vis, imwriteParams_);
+        }
     }
 
     // Fit wings from the wing-pixel set for one head-orientation hypothesis (headTheta = head).
@@ -1591,28 +1653,50 @@ namespace bias
         const double minNonzero = config.minNonzeroWingAngleDeg * M_PI / 180.0;
         const double rear = headTheta + M_PI;
         const int nBins = std::max(1, config.nBinsDThetaWing);
+        const double binWidth = (2.0 * maxAngle) / nBins;
+
+        // bin centers + precomputed per-bin head/tail weight w(c) = cos(c) - cos(maxAngle):
+        // peaks (= 1 - cos(maxAngle)) directly behind the head and tapers smoothly to 0 at
+        // the +/-maxAngle window edge, non-negative inside. The weights depend only on
+        // (nBins, maxAngle), so they are cached across calls (tracking is single-threaded).
+        std::vector<double> centers(nBins, 0.0);
+        for (int b = 0; b < nBins; b++) centers[b] = -maxAngle + (b + 0.5) * binWidth;
+        static std::vector<double> wbin;
+        static int wbinNBins = -1;
+        static double wbinMaxAngle = -1.0;
+        if ((int)wbin.size() != nBins || wbinNBins != nBins || wbinMaxAngle != maxAngle) {
+            wbin.assign(nBins, 0.0);
+            const double cmax = std::cos(maxAngle);
+            for (int b = 0; b < nBins; b++) wbin[b] = std::cos(centers[b]) - cmax;
+            wbinNBins = nBins; wbinMaxAngle = maxAngle;
+        }
 
         // 1. per-pixel bearings relative to the rear axis; keep those within the rear window
+        //    and bin them (the fit histogram). frac holds raw counts at this stage.
         std::vector<double> dth;
         dth.reserve(wingPx.size());
+        std::vector<double> frac(nBins, 0.0);
         for (size_t i = 0; i < wingPx.size(); i++) {
             double d = wrapToPi(std::atan2((double)wingPx[i].y - y, (double)wingPx[i].x - x) - rear);
-            if (std::abs(d) <= maxAngle) dth.push_back(d);
+            if (std::abs(d) <= maxAngle) {
+                dth.push_back(d);
+                int b = (int)std::floor((d + maxAngle) / binWidth);
+                if (b < 0) b = 0;
+                if (b >= nBins) b = nBins - 1;
+                frac[b] += 1.0;
+            }
         }
         const int nwingpx = (int)dth.size();
-        r.score = (double)nwingpx; // head/tail discriminator
+        // angle-weighted head/tail score = sum_b count[b]*wbin[b] (one nBins-length dot of the
+        // raw histogram, no per-pixel trig). Computed from the counts so keep/flip share the
+        // same scale even when one hypothesis is too sparse and early-returns below.
+        double scoreSum = 0.0;
+        for (int b = 0; b < nBins; b++) scoreSum += frac[b] * wbin[b];
+        r.score = scoreSum;
         if (nwingpx <= config.minSingleWingArea) return r; // too few wing pixels (MATLAB: locs sought only if > )
 
-        // 2. normalized histogram (with histc last-bin fold) + smoothing
-        const double binWidth = (2.0 * maxAngle) / nBins;
-        std::vector<double> frac(nBins, 0.0), centers(nBins, 0.0);
-        for (int i = 0; i < nwingpx; i++) {
-            int b = (int)std::floor((dth[i] + maxAngle) / binWidth);
-            if (b < 0) b = 0;
-            if (b >= nBins) b = nBins - 1;
-            frac[b] += 1.0;
-        }
-        for (int b = 0; b < nBins; b++) { frac[b] /= (double)nwingpx; centers[b] = -maxAngle + (b + 0.5) * binWidth; }
+        // 2. normalize the histogram (counts binned above) + smoothing
+        for (int b = 0; b < nBins; b++) frac[b] /= (double)nwingpx;
         const std::vector<double>& filt = config.wingFracFilter;
         const int fLen = (int)filt.size();
         const int fHalf = fLen / 2;
@@ -1778,6 +1862,10 @@ namespace bias
         segmentWingPixels(wingPx_);
         WingFitResult wfKeep = fitWingsFromPixels(wingPx_, flyEllipse_.x, flyEllipse_.y, theta0, config_);
         WingFitResult wfFlip = fitWingsFromPixels(wingPx_, flyEllipse_.x, flyEllipse_.y, theta0 + M_PI, config_);
+
+        // diagnostic: keep vs flip wing-fit scores used for head/tail resolution
+        flyEllipse_.htScoreKeep = wfKeep.score;
+        flyEllipse_.htScoreFlip = wfFlip.score;
 
         resolveHeadTail(wfKeep.score, wfFlip.score, true);
 

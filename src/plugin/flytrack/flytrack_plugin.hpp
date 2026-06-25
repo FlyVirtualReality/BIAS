@@ -37,6 +37,14 @@ namespace bias
         int nWingsDetected = 0;      // 0, 1, or 2
         double wingAreaL = 0.0;      // left wing pixel area
         double wingAreaR = 0.0;      // right wing pixel area
+        // head/tail diagnostics (keep = current theta, flip = theta+pi). The cost terms
+        // are UNWEIGHTED; final decision was: flip if (wVel*vel + wWing*wing + wOri*ori)
+        // is smaller for flip than keep. Lets the weighting be re-derived offline.
+        double htScoreKeep = 0.0, htScoreFlip = 0.0;  // angle-weighted wing-pixel score in rear window
+        double htVelKeep = 0.0, htVelFlip = 0.0;      // velocity cost (unweighted)
+        double htOriKeep = 0.0, htOriFlip = 0.0;      // orientation-history cost (unweighted)
+        double htWingKeep = 0.0, htWingFlip = 0.0;    // wing cost (unweighted, = -normalized score)
+        double htCostKeep = 0.0, htCostFlip = 0.0;    // final weighted cost actually compared
     };
 
     // Result of fitting wings for one head-orientation hypothesis
@@ -48,7 +56,9 @@ namespace bias
         int nWings;         // 0, 1, or 2
         double areaL;       // left wing pixel area
         double areaR;       // right wing pixel area
-        double score;       // # wing pixels retained within the rear window (head/tail discriminator)
+        double score;       // angle-weighted wing-pixel score in the rear window: sum of
+                            // cos(d)-cos(maxAngle) over retained pixels (head/tail discriminator,
+                            // upweights pixels directly behind the head, 0 at the +/-maxAngle edge)
     };
 
     // helper functions
@@ -105,6 +115,8 @@ namespace bias
             virtual QString getDisplayName();
             virtual QVariantMap getConfigAsMap();  
             RtnStatus setFromConfig(FlyTrackConfig config);
+            void setTrajectoryFileName(QString path); // override output trajectory path (e.g. from CLI)
+            void setDebugSegAllFrames(bool value); // CLI: dump wing segmentation every frame (default: first frame only)
             virtual RtnStatus setConfigFromMap(QVariantMap configMap);
             virtual RtnStatus setConfigFromJson(QByteArray jsonArray);
             virtual RtnStatus runCmdFromMap(QVariantMap cmdMap, bool showErrorDlg=true, QString& value = QString(""));
@@ -188,6 +200,7 @@ namespace bias
             cv::Mat dBkgd_; // positive-on-fly background difference (reused for wing tracking)
             cv::Mat inROI_; // mask for ROI
             std::vector<cv::Point> wingPx_; // reusable buffer of wing-pixel coordinates
+            bool debugSegAllFrames_ = false; // CLI: dump wing segmentation every frame, not just the first
             EllipseParams flyEllipse_; // fly ellipse parameters
             int lastFramePreviewed_; // last frame shown in preview window
             int lastFrameMedianComputed_; // last frame median computed

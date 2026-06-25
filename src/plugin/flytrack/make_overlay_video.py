@@ -8,7 +8,7 @@ drawn on each frame.
 Usage:
   python make_overlay_video.py INPUT_VIDEO TRACK_JSON OUTPUT_VIDEO
                                [--carry] [--frame-offset N] [--fps F]
-                               [--crop-radius R] [--scale S]
+                               [--crop-radius R] [--scale S] [--trim]
 
 Notes:
   * Colors: body ellipse = C0 (blue), wings = C1 (orange). Lines are antialiased.
@@ -106,6 +106,10 @@ def main():
     ap.add_argument("--scale", type=float, default=1.0,
                     help="upscale the output by this factor (e.g. 4) for higher resolution; "
                          "the overlay is drawn at the upscaled resolution so it stays crisp.")
+    ap.add_argument("--trim", action="store_true",
+                    help="only render the video frames covered by the trajectory (seek to the "
+                         "first tracked frame, stop after the last) instead of the whole video. "
+                         "Useful for segment tracking (-s).")
     args = ap.parse_args()
 
     by_frame = load_tracks(args.track_json)
@@ -140,14 +144,27 @@ def main():
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     if total <= 0:
         total = None  # unknown/unreliable -> tqdm shows a count instead of a bar
+
+    # optionally restrict output to the frames covered by the trajectory
+    start_i, stop_i = 0, None
+    if args.trim and by_frame:
+        start_i = max(0, min(by_frame) - args.frame_offset)
+        stop_i = max(by_frame) - args.frame_offset
+        cap.set(cv2.CAP_PROP_POS_FRAMES, start_i)
+        start_i = int(round(cap.get(cv2.CAP_PROP_POS_FRAMES)))  # actual (codec may snap)
+        total = max(0, stop_i - start_i + 1)
+        print(f"trim: rendering video frames {start_i}..{stop_i}")
+
     pbar = tqdm(total=total, unit="frame", desc="overlay") if tqdm is not None else None
 
-    i = 0
+    i = start_i
     last = None
     n_drawn = 0
     while True:
         ok, frame = cap.read()
         if not ok:
+            break
+        if stop_i is not None and i > stop_i:
             break
         if frame.ndim == 2 or frame.shape[2] == 1:
             frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)

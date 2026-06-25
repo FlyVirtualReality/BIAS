@@ -43,6 +43,7 @@ namespace bias
             void disableErrorCount();
             void setIsVideo(bool v);
             void setVideoFileName(QString captureVideoFileName);
+            void setStartFrame(int f);
 
             static unsigned int DEFAULT_NUM_STARTUP_SKIP;
             static unsigned int MIN_STARTUP_SKIP;
@@ -65,6 +66,7 @@ namespace bias
             // for reading from video instead of camera
             bool isVideo_;
             QString vidFileName_;
+            int startFrame_; // video frame to start from (0 = beginning)
             videoBackend* vidObj_;
 
             std::shared_ptr<Lockable<Camera>> cameraPtr_;

@@ -468,6 +468,7 @@ namespace bias
         }
         imageGrabberPtr_->setIsVideo(doCaptureFromVideo_);
         imageGrabberPtr_->setVideoFileName(captureVideoFileName_);
+        imageGrabberPtr_->setStartFrame(captureStartFrame_);
 
         imageDispatcherPtr_ = new ImageDispatcher(
                 logging_, 
@@ -2627,6 +2628,7 @@ namespace bias
 
         captureVideoFileName_ = QString("");
         doCaptureFromVideo_ = false;
+        captureStartFrame_ = params.startFrame;
         if (!params.inVideoFile.isEmpty()) {
             if (QFileInfo::exists(params.inVideoFile)) {
                 captureVideoFileName_ = params.inVideoFile;
@@ -2700,6 +2702,17 @@ namespace bias
             }
             else {
                 qWarning() << QString("Configuration file %1 does not exist: ").arg(params.configFile);
+            }
+        }
+
+        // CLI overrides for the FlyTrack plugin (after config load, so they win)
+        {
+            FlyTrackPlugin* flyTrackPtr = qobject_cast<FlyTrackPlugin*>(pluginMap_[FlyTrackPlugin::PLUGIN_NAME]);
+            if (flyTrackPtr != nullptr) {
+                if (!params.trajectoryFile.isEmpty()) {
+                    flyTrackPtr->setTrajectoryFileName(params.trajectoryFile);
+                }
+                flyTrackPtr->setDebugSegAllFrames(params.debugSegAllFrames);
             }
         }
 
