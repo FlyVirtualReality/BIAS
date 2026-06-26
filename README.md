@@ -60,15 +60,41 @@ Step-by-step instructions for doing real-time tracking of a single fly:
     - Switch to **Mode: Track Fly**
     - If you skipped the "Compute the background model image" step above, select an existing **Bkgd Image Path** and click **Load**. This will be pre-loaded if you followed the "Compute the background model image" step above. The background image should be visible on the right side of the Settings dialog.
     - Modify the following parameters as needed:
-        - Background subtraction parameters:
-            - **Comparison Mode**: Whether flies are darker than the background, lighter than the background, or either. 
-            - **Background Threshold**: Minimum difference from background to be considered foreground. 
-        - Region of Interest (ROI) parameters: Set the Region of Interest (ROI) where the fly can be. This will be shown in the preview window with a red outline. 
-        - The **History Buffer Length**, **Min Speed**, and **Speed Weight** parameters are used for telling which side of the fly is the head vs the tail. 
-        - Output file parameters:
-            - **Output Trajectory File Name**: Base name of the output trajectory. By default, this will go in the same directory as the video being logged. Example value: `track`. 
-            - **Absolute Path**: If you prefer to specify the absolute path to the output file, specify it here. 
-            - **Debug Output Folder**: Where to output debug information. Only needs to be set if the **Debug** flag is true. 
+        - **Background subtraction** (used to find the fly body):
+            - **Comparison Mode**: Whether flies are darker than the background (`FLY_DARKER_THAN_BG`), lighter (`FLY_BRIGHTER_THAN_BG`), or either (`FLY_ANY_DIFFERENCE_BG`).
+            - **Background Threshold**: Minimum difference from the background for a pixel to count as foreground (the body). Higher = stricter.
+        - **Region of Interest (ROI)**: where the fly can be; drawn in the preview with a red outline. Pixels outside are ignored.
+            - **ROI Type**: `CIRCLE` (a circular arena) or `NONE` (whole frame).
+            - **ROI Center X**, **ROI Center Y**, **ROI Radius**: center and radius (pixels) of the circular ROI.
+        - **Head/tail resolution** (which end is the head): decided each frame from the fly's velocity, its recent orientation, and — if wing tracking is on — the wings (which trail behind the head).
+            - **History Buffer Length**: number of past frames used to smooth velocity and orientation.
+            - **Min. Speed**: minimum speed (pixels/frame) before the velocity cue is trusted (a slow/stationary fly gives no velocity cue).
+            - **Speed Weight**: weight of the velocity cue in the head/tail decision.
+            - **Wing Weight (head/tail)**: weight of the wing cue in the head/tail decision (only active when **Track Wings** is on).
+        - **Wing tracking** (estimates the two wing angles; enable **Track Wings**):
+            - **Track Wings**: turn wing-angle tracking (and the wing-aided head/tail) on/off.
+            - **Normalize wing diff by background brightness**: divide the background difference by the local background brightness before thresholding, so the wing thresholds are invariant to the arena's illumination gradient (recommended for backlit arenas). When **on**, the wing thresholds below are on a 0–255 "fraction of light blocked × 255" scale; when **off**, they are raw intensity-difference counts. (The thresholds need different values in the two modes.)
+            - **Wing High Thresh** / **Wing Low Thresh**: hysteresis thresholds for wing pixels — a wing region must contain at least one pixel above *High* and grows out through pixels above *Low*.
+            - **Body Thresh**: pixels whose difference exceeds this are treated as body, not wing. Keep it above the wings' brightness so the abdomen isn't mis-counted as wing.
+            - **Max Wing Px Angle (deg)**: only pixels within this angle of the rear axis are considered wing pixels (the window for the wing-angle histogram).
+            - **Num Angle Bins**: number of bins in the wing-angle histogram.
+            - **Min Wing Area**: minimum number of wing pixels needed to attempt a fit / to keep a detected wing.
+            - **Min Peak Dist (bins)**: minimum separation (histogram bins) required between the two wing peaks.
+            - **2nd Peak Frac Factor**: a second wing is accepted only if its peak holds at least `factor / Num Angle Bins` of the wing pixels.
+            - **Min Nonzero Angle (deg)**: guards against detecting two wings on the same side of the body.
+            - **Min Peak Frac**: minimum fraction of pixels in the primary peak bin (`0` = always pass).
+            - **Body Dilate Radius**: radius (px) the body mask is grown by before excluding it from the wing search; larger removes more near-body penumbra (and legs) at the edge of the body.
+            - **Wing Open Radius**: radius (px) of the morphological open/close on the wing mask; larger erodes thin structures such as legs and noise.
+            - **Quadfit Radius (bins)**: ± bins used for the sub-bin quadratic refinement of each wing-angle peak.
+            - **Smoothing Filter (comma-sep)**: smoothing kernel applied to the wing-angle histogram (e.g. `0.25,0.5,0.25`).
+        - **Preview** (display only; do not affect tracking):
+            - **Show wing segmentation**: in the Plugin Preview, draw the body/wing pixel classification (body blue, wings orange, translucent over the real image) plus the wing-fit lines, with no ellipse — useful for tuning the wing thresholds.
+            - **Zoom in on the fly**: crop the Plugin Preview to a box around the fly and upscale it so the fly fills the view (works with either the segmentation or ellipse view).
+        - **Output file**:
+            - **Output Trajectory File Name**: Base name of the output trajectory. By default, this will go in the same directory as the video being logged. Example value: `track`.
+            - **Absolute Path**: If you prefer to specify the absolute path to the output file, specify it here.
+            - **Debug Output Folder**: Where to output debug information. Only needs to be set if the **Debug** flag is true.
+            - **Debug**: when checked, write diagnostic images (background difference, foreground mask, and the wing/body segmentation under `wingseg/`) to the **Debug Output Folder**.
     - Click **Done**
 - If you want to reuse this configuration later, select **File->Save Configuration**. The FlyTrack plugin configuration will be part of the general BIAS configuration file. You can load this configuration later by choosing **File->Load Configuration**. 
 - If you want to record video as well, enable logging under the **Logging** menu. 
