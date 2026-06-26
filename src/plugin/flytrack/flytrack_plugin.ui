@@ -510,6 +510,27 @@
            </widget>
           </item>
           <item>
+           <widget class="QCheckBox" name="normalizeWingByBackgroundCheckBox">
+            <property name="text">
+             <string>Normalize wing diff by background brightness</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="showWingSegmentationCheckBox">
+            <property name="text">
+             <string>Show wing segmentation in preview (body/wing pixels + wing fits, no ellipse)</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="zoomToFlyCheckBox">
+            <property name="text">
+             <string>Zoom preview in on the fly</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <layout class="QHBoxLayout" name="wingHLayout1">
             <item>
              <widget class="QLabel" name="mindWingHighLabel">

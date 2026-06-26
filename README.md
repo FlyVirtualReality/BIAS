@@ -74,6 +74,31 @@ Step-by-step instructions for doing real-time tracking of a single fly:
 - If you want to record video as well, enable logging under the **Logging** menu. 
 - **Start** the camera running. If you switch again to the **Plugin Preview** tab, you should see the foreground/background classification, the ellipse fit to this, and an asterisk plotted at the side of the fly assigned to tbe the head. 
 
+## Command-line arguments
+
+`test_gui.exe` accepts the following options. These are mainly for **offline tracking of recorded videos** (and for batch/headless runs); with no options BIAS starts normally and captures from an attached camera.
+
+| Option | Argument | Description |
+| --- | --- | --- |
+| `-i`, `--in`, `--in-video` | `<in-video-file>` | Capture from a video file instead of a camera. |
+| `-c`, `--config` | `<config-file>` | Load a BIAS configuration (camera + plugin settings, including FlyTrack) from a JSON file at startup. |
+| `-s`, `--start-frame` | `<start-frame>` | When reading from a video (`-i`), seek to and begin tracking at this frame instead of the beginning (video input only). Useful for jumping to a segment of interest without tracking from frame 0. |
+| `-o`, `--out-track` | `<out-track-file>` | Write the FlyTrack trajectory to this path, overriding the output path in the config. |
+| `--debug-seg-all-frames` | _(flag)_ | Dump the wing-segmentation debug image for **every** frame (to `<Debug Output Folder>/wingseg/wingseg_<frame>.png`) instead of only the first tracked frame. Requires **Debug** enabled in the config. Writes one PNG per frame — run short segments. |
+| `-h`, `--help` | _(flag)_ | Show the help message and exit. |
+
+Example — track a recorded video with a saved configuration, starting at frame 15000 and writing the trajectory to a chosen file:
+
+```powershell
+C:\Code\BIAS\build-vs\Release\test_gui.exe `
+    -i C:\path\to\video.avi `
+    -c C:\path\to\bias_config.json `
+    -s 15000 `
+    -o C:\path\to\trx.json
+```
+
+The FlyTrack plugin must be enabled (in the loaded config, or via the **Plugins -> Enabled** menu) for tracking to run.
+
 ## Developer Build Instructions
 
 ### Requirements

@@ -249,7 +249,53 @@ namespace bias
             currentImageCopy = currentImage_.clone();
             return;
 		}
-        currentImageCopy = isFg_.clone(); 
+
+        // matplotlib C0 (blue) / C1 (orange), BGR -- shared with make_overlay_video.py
+        const cv::Scalar COLOR_BODY(180, 119, 31);
+        const cv::Scalar COLOR_WING(14, 127, 255);
+
+        // wing-segmentation view: transparent body/wing overlay on the real image + wing
+        // fits, no ellipse. (Normal view below uses the binary foreground as background.)
+        if (config_.showWingSegmentation) {
+            cv::cvtColor(currentImage_, currentImageCopy, cv::COLOR_GRAY2BGR);
+            cv::Rect box = wingSegBox_;
+            cv::Rect full(0, 0, currentImageCopy.cols, currentImageCopy.rows);
+            if (box.width > 0 && box.height > 0 && (box & full) == box
+                && wingSegLabels_.size() == box.size()) {
+                const double alpha = 0.45; // overlay opacity (fly visible underneath)
+                cv::Vec3b body((uchar)COLOR_BODY[0], (uchar)COLOR_BODY[1], (uchar)COLOR_BODY[2]);
+                cv::Vec3b wing((uchar)COLOR_WING[0], (uchar)COLOR_WING[1], (uchar)COLOR_WING[2]);
+                cv::Mat roi = currentImageCopy(box);
+                for (int yy = 0; yy < roi.rows; yy++) {
+                    const unsigned char* lp = wingSegLabels_.ptr<unsigned char>(yy);
+                    cv::Vec3b* rp = roi.ptr<cv::Vec3b>(yy);
+                    for (int xx = 0; xx < roi.cols; xx++) {
+                        if (lp[xx] == 0) continue;
+                        const cv::Vec3b& c = (lp[xx] == 2) ? wing : body;
+                        for (int ch = 0; ch < 3; ch++)
+                            rp[xx][ch] = (uchar)(alpha * c[ch] + (1.0 - alpha) * rp[xx][ch]);
+                    }
+                }
+                cv::rectangle(currentImageCopy, box, cv::Scalar(90, 90, 90), 1); // seg box
+            }
+            // wing-fit lines + centroid (no ellipse)
+            if (config_.trackWings && flyEllipse_.nWingsDetected > 0) {
+                double wingLen = 2.0 * flyEllipse_.a;
+                double rear = flyEllipse_.theta + M_PI;
+                double wingAngles[2] = { flyEllipse_.wingAngleL, flyEllipse_.wingAngleR };
+                cv::Point center(clampToInt(flyEllipse_.x), clampToInt(flyEllipse_.y));
+                for (int w = 0; w < 2; w++) {
+                    if (flyEllipse_.nWingsDetected < 2 && std::abs(wingAngles[w]) < 1e-6) continue;
+                    double ang = rear + wingAngles[w];
+                    cv::Point tip(clampToInt(flyEllipse_.x + wingLen * std::cos(ang)),
+                                  clampToInt(flyEllipse_.y + wingLen * std::sin(ang)));
+                    cv::line(currentImageCopy, center, tip, COLOR_WING, 1, cv::LINE_AA);
+                }
+                cv::drawMarker(currentImageCopy, center, cv::Scalar(255, 255, 255), cv::MARKER_CROSS, 6, 1);
+            }
+        }
+        else {
+        currentImageCopy = isFg_.clone();
         cv::cvtColor(currentImageCopy, currentImageCopy, cv::COLOR_GRAY2BGR);
         // plot fit ellipse
         cv::ellipse(currentImageCopy, cv::Point(clampToInt(flyEllipse_.x), clampToInt(flyEllipse_.y)),
@@ -273,6 +319,25 @@ namespace bias
                               clampToInt(flyEllipse_.y + wingLen * std::sin(ang)));
                 cv::line(currentImageCopy, center, tip, cv::Scalar(0, 255, 0), 1);
             }
+        }
+        }
+
+        // optional zoom: crop a box around the fly (sized to the fly) and upscale it to fill
+        // the preview. Applied after all overlays so they zoom with the image. Only on preview
+        // repaints, so cheap.
+        if (config_.zoomToFly && flyEllipse_.a > 0.0 && !currentImageCopy.empty()) {
+            int W = currentImageCopy.cols, H = currentImageCopy.rows;
+            int halfH = std::max(20, (int)std::lround(8.0 * flyEllipse_.a)); // fly + wings + context
+            int halfW = std::max(1, (int)std::lround(halfH * (double)W / (double)H)); // keep aspect
+            int bw = std::min(2 * halfW, W), bh = std::min(2 * halfH, H);
+            int x0 = std::min(std::max(0, clampToInt(flyEllipse_.x) - bw / 2), W - bw);
+            int y0 = std::min(std::max(0, clampToInt(flyEllipse_.y) - bh / 2), H - bh);
+            // resize into a separate Mat: the crop is a sub-view of currentImageCopy, so an
+            // in-place resize would alias src/dst and corrupt the rows.
+            cv::Mat zoomed;
+            cv::resize(currentImageCopy(cv::Rect(x0, y0, bw, bh)), zoomed,
+                       cv::Size(W, H), 0, 0, cv::INTER_NEAREST);
+            currentImageCopy = zoomed;
         }
     }
 
@@ -769,9 +834,16 @@ namespace bias
 
             //printf("Setting config:\n");
 
+            // Mutate shared tracking state (config_, bgMedianImage_, inROI_) under the plugin
+            // lock: this runs on the GUI thread while the tracking thread reads config_ every
+            // frame (e.g. config_.wingFracFilter in fitWingsFromPixels). Without the lock, the
+            // wholesale config_ reassignment frees that vector mid-read -> crash. processFrames
+            // and getCurrentImage take the same lock, so this serializes against both.
+            acquireLock();
             config_ = config;
             setBgImageFilePath(config_.bgImageFilePath);
             setROI(config);
+            releaseLock();
 
             if (config_.computeBgMode) {
                 computeBgModeComboBox->setCurrentIndex(0);
@@ -790,6 +862,9 @@ namespace bias
             headTailWeightWingLineEdit->setText(QString::number(config_.headTailWeightWing));
             // wing tracking widgets
             trackWingsCheckBox->setChecked(config_.trackWings);
+            normalizeWingByBackgroundCheckBox->setChecked(config_.normalizeWingByBackground);
+            showWingSegmentationCheckBox->setChecked(config_.showWingSegmentation);
+            zoomToFlyCheckBox->setChecked(config_.zoomToFly);
             mindWingHighSpinBox->setValue(config_.mindWingHigh);
             mindWingLowSpinBox->setValue(config_.mindWingLow);
             mindBodySpinBox->setValue(config_.mindBody);
@@ -880,6 +955,9 @@ namespace bias
 
     void FlyTrackPlugin::getUiWingValues(FlyTrackConfig& config) {
         config.trackWings = trackWingsCheckBox->isChecked();
+        config.normalizeWingByBackground = normalizeWingByBackgroundCheckBox->isChecked();
+        config.showWingSegmentation = showWingSegmentationCheckBox->isChecked();
+        config.zoomToFly = zoomToFlyCheckBox->isChecked();
         config.mindWingHigh = mindWingHighSpinBox->value();
         config.mindWingLow = mindWingLowSpinBox->value();
         config.mindBody = mindBodySpinBox->value();
@@ -1505,15 +1583,15 @@ namespace bias
     void FlyTrackPlugin::computeBackgroundDiff(const cv::Rect& box, cv::Mat& dBkgdOut) {
         cv::Mat imBox = currentImage_(box);
         cv::Mat bgBox = bgMedianImage_(box);
-        // Normalize the difference by the local background brightness (relative/fractional
-        // difference) so the wing thresholds are invariant to the strong illumination
-        // gradient across the arena (bright center vs. dim edge). This is a backlit setup --
-        // the fly attenuates transmitted light multiplicatively -- so (bg-im)/bg is the
-        // fraction of light absorbed, ~constant for the same fly regardless of local
-        // brightness. Scaled by 255 so dBkgd stays in 0..255 (now "fraction absorbed * 255").
-        // Divide-by-zero (bg=0 at corners/outside ROI) -> 0. NOTE: this is wing-tracking only;
-        // the body ellipse uses a separate absolute-threshold path. The wing thresholds
-        // (mindBody / mindWing*) are therefore on this normalized scale, not raw counts.
+        // Raw background difference (absolute). When normalizeWingByBackground is set, divide
+        // by the local background brightness so the wing thresholds are invariant to the strong
+        // illumination gradient across the arena (bright center vs. dim edge): this is a backlit
+        // setup -- the fly attenuates transmitted light multiplicatively -- so (bg-im)/bg is the
+        // fraction of light absorbed, ~constant for the same fly regardless of local brightness.
+        // Scaled by 255 so dBkgd stays in 0..255 ("fraction absorbed * 255"); divide-by-zero
+        // (bg=0 at corners/outside ROI) -> 0. NOTE: wing-tracking only (the body ellipse uses a
+        // separate absolute-threshold path); when normalized, the wing thresholds (mindBody /
+        // mindWing*) are on this normalized scale, not raw counts.
         cv::Mat diff;
         switch (config_.flyVsBgMode) {
         case FLY_DARKER_THAN_BG:
@@ -1526,7 +1604,10 @@ namespace bias
             cv::absdiff(imBox, bgBox, diff);
             break;
         }
-        cv::divide(diff, bgBox, dBkgdOut, 255.0, CV_8U); // 255*(diff)/bg, /0 -> 0
+        if (config_.normalizeWingByBackground)
+            cv::divide(diff, bgBox, dBkgdOut, 255.0, CV_8U); // 255*diff/bg (relative), /0 -> 0
+        else
+            dBkgdOut = diff;                                 // raw absolute difference
         if (config_.roiType != NONE) {
             cv::bitwise_and(dBkgdOut, inROI_(box), dBkgdOut);
         }
@@ -1606,6 +1687,16 @@ namespace bias
             wingPx.reserve(pts.size());
             for (size_t i = 0; i < pts.size(); i++)
                 wingPx.push_back(cv::Point(pts[i].x + box.x, pts[i].y + box.y));
+        }
+
+        // store the segmentation for the live preview overlay (opt-in, so the clone cost is
+        // only paid when the overlay is enabled). Box-local labels: 1=body (dilated), 2=wing.
+        if (config_.showWingSegmentation) {
+            cv::Mat lab = cv::Mat::zeros(d.size(), CV_8U);
+            lab.setTo(1, isBody);
+            lab.setTo(2, iswing);
+            wingSegLabels_ = lab;
+            wingSegBox_ = box;
         }
 
         // DEBUG: dump a visualization of the wing/body segmentation so the thresholds can be

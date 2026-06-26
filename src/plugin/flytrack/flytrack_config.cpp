@@ -24,6 +24,9 @@ namespace bias
 
     // wing tracking defaults (from production WingTrackingParameters)
     const bool FlyTrackConfig::DEFAULT_TRACK_WINGS = false;
+    const bool FlyTrackConfig::DEFAULT_NORMALIZE_WING_BY_BACKGROUND = true;
+    const bool FlyTrackConfig::DEFAULT_SHOW_WING_SEGMENTATION = false;
+    const bool FlyTrackConfig::DEFAULT_ZOOM_TO_FLY = false;
     const int FlyTrackConfig::DEFAULT_MINDWING_HIGH = 50;
     const int FlyTrackConfig::DEFAULT_MINDWING_LOW = 30;
     const int FlyTrackConfig::DEFAULT_MINDBODY = 100;
@@ -60,6 +63,9 @@ namespace bias
         tmpTrackFilePath = QString(""); // empty string means it is not set
         // wing tracking
         trackWings = DEFAULT_TRACK_WINGS;
+        normalizeWingByBackground = DEFAULT_NORMALIZE_WING_BY_BACKGROUND;
+        showWingSegmentation = DEFAULT_SHOW_WING_SEGMENTATION;
+        zoomToFly = DEFAULT_ZOOM_TO_FLY;
         mindWingHigh = DEFAULT_MINDWING_HIGH;
         mindWingLow = DEFAULT_MINDWING_LOW;
         mindBody = DEFAULT_MINDBODY;
@@ -97,6 +103,9 @@ namespace bias
         config.trackFileName = trackFileName;
         config.tmpTrackFilePath = tmpTrackFilePath;
         config.trackWings = trackWings;
+        config.normalizeWingByBackground = normalizeWingByBackground;
+        config.showWingSegmentation = showWingSegmentation;
+        config.zoomToFly = zoomToFly;
         config.mindWingHigh = mindWingHigh;
         config.mindWingLow = mindWingLow;
         config.mindBody = mindBody;
@@ -139,6 +148,9 @@ namespace bias
         configStr += QString("headTailWeightWing: %1\n").arg(headTailWeightWing);
         configStr += QString("DEBUG: %1\n").arg(DEBUG);
         configStr += QString("trackWings: %1\n").arg(trackWings);
+        configStr += QString("normalizeWingByBackground: %1\n").arg(normalizeWingByBackground);
+        configStr += QString("showWingSegmentation: %1\n").arg(showWingSegmentation);
+        configStr += QString("zoomToFly: %1\n").arg(zoomToFly);
         configStr += QString("mindWingHigh: %1\n").arg(mindWingHigh);
         configStr += QString("mindWingLow: %1\n").arg(mindWingLow);
         configStr += QString("mindBody: %1\n").arg(mindBody);
@@ -397,6 +409,21 @@ namespace bias
                 trackWings = configMap["trackWings"].toBool();
             else { rtnStatus.success = false; rtnStatus.appendMessage("unable to convert trackWings to bool"); }
         }
+        if (configMap.contains("normalizeWingByBackground")) {
+            if (configMap["normalizeWingByBackground"].canConvert<bool>())
+                normalizeWingByBackground = configMap["normalizeWingByBackground"].toBool();
+            else { rtnStatus.success = false; rtnStatus.appendMessage("unable to convert normalizeWingByBackground to bool"); }
+        }
+        if (configMap.contains("showWingSegmentation")) {
+            if (configMap["showWingSegmentation"].canConvert<bool>())
+                showWingSegmentation = configMap["showWingSegmentation"].toBool();
+            else { rtnStatus.success = false; rtnStatus.appendMessage("unable to convert showWingSegmentation to bool"); }
+        }
+        if (configMap.contains("zoomToFly")) {
+            if (configMap["zoomToFly"].canConvert<bool>())
+                zoomToFly = configMap["zoomToFly"].toBool();
+            else { rtnStatus.success = false; rtnStatus.appendMessage("unable to convert zoomToFly to bool"); }
+        }
         if (configMap.contains("mindWingHigh")) {
             if (configMap["mindWingHigh"].canConvert<int>())
                 mindWingHigh = configMap["mindWingHigh"].toInt();
@@ -547,6 +574,9 @@ namespace bias
 
         QVariantMap wingMap;
         wingMap.insert("trackWings", trackWings);
+        wingMap.insert("normalizeWingByBackground", normalizeWingByBackground);
+        wingMap.insert("showWingSegmentation", showWingSegmentation);
+        wingMap.insert("zoomToFly", zoomToFly);
         wingMap.insert("mindWingHigh", mindWingHigh);
         wingMap.insert("mindWingLow", mindWingLow);
         wingMap.insert("mindBody", mindBody);

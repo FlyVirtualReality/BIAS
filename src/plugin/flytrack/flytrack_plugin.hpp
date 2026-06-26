@@ -201,6 +201,8 @@ namespace bias
             cv::Mat inROI_; // mask for ROI
             std::vector<cv::Point> wingPx_; // reusable buffer of wing-pixel coordinates
             bool debugSegAllFrames_ = false; // CLI: dump wing segmentation every frame, not just the first
+            cv::Rect wingSegBox_; // box of the last wing segmentation (for the preview overlay)
+            cv::Mat wingSegLabels_; // box-sized CV_8U seg labels: 1=body, 2=wing (for the preview overlay)
             EllipseParams flyEllipse_; // fly ellipse parameters
             int lastFramePreviewed_; // last frame shown in preview window
             int lastFrameMedianComputed_; // last frame median computed

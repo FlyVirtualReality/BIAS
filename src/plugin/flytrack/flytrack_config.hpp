@@ -47,6 +47,9 @@ namespace bias
 
             // wing tracking defaults
             static const bool DEFAULT_TRACK_WINGS; // whether to track wings
+            static const bool DEFAULT_NORMALIZE_WING_BY_BACKGROUND; // normalize wing bg-difference by local bg brightness
+            static const bool DEFAULT_SHOW_WING_SEGMENTATION; // overlay wing/body segmentation in the plugin preview
+            static const bool DEFAULT_ZOOM_TO_FLY; // zoom the plugin preview in on the fly
             static const int DEFAULT_MINDWING_HIGH; // wing hysteresis high seed threshold on bg difference
             static const int DEFAULT_MINDWING_LOW; // wing hysteresis low threshold on bg difference
             static const int DEFAULT_MINDBODY; // body vs wing threshold on bg difference
@@ -85,6 +88,9 @@ namespace bias
 
             // wing tracking parameters
             bool trackWings; // whether to track wings
+            bool normalizeWingByBackground; // normalize the wing bg-difference by local bg brightness (relative threshold)
+            bool showWingSegmentation; // overlay wing/body segmentation + wing fits on the plugin preview (no ellipse)
+            bool zoomToFly; // zoom the plugin preview in on the fly (crop a box around the fly and upscale)
             int mindWingHigh; // wing hysteresis high seed threshold on bg difference
             int mindWingLow; // wing hysteresis low threshold on bg difference
             int mindBody; // body vs wing threshold on bg difference
