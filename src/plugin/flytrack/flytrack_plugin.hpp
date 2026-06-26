@@ -59,6 +59,8 @@ namespace bias
         double score;       // angle-weighted wing-pixel score in the rear window: sum of
                             // cos(d)-cos(maxAngle) over retained pixels (head/tail discriminator,
                             // upweights pixels directly behind the head, 0 at the +/-maxAngle edge)
+        int nRearPx;        // count of wing pixels retained in the rear window (unweighted; used
+                            // for the head/tail magnitude gate so minSingleWingArea stays a pixel count)
     };
 
     // helper functions
@@ -151,7 +153,7 @@ namespace bias
             void updateVelocityHistory();
             void updateOrientationHistory();
             void updateEllipseHistory();
-            void resolveHeadTail(double wingScoreKeep, double wingScoreFlip, bool wingValid);
+            void resolveHeadTail(double wingScoreKeep, double wingScoreFlip, int wingRearPxKeep, int wingRearPxFlip, bool wingValid);
             void flipFlyOrientationHistory();
             // wing tracking
             void getUiWingValues(FlyTrackConfig& config);

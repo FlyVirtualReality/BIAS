@@ -198,7 +198,7 @@ namespace bias
             trackWings();
         }
         else {
-            resolveHeadTail(0.0, 0.0, false);
+            resolveHeadTail(0.0, 0.0, 0, 0, false);
         }
 
         // store ellipse
@@ -243,6 +243,12 @@ namespace bias
 
     }
 
+    // Half-box around the fly = ceil(WING_BBOX_A_FACTOR * a) + morphology margin. Bounds both
+    // the wing segmentation and the preview zoom, so both scale with the fly's apparent size
+    // (and adapt if the video is zoomed in/out -- no hard-coded pixel sizes). Raise if wings
+    // get clipped.
+    static const double WING_BBOX_A_FACTOR = 5.0;
+
     void FlyTrackPlugin::getCurrentImageTrackMode(cv::Mat& currentImageCopy)
     {
         if (!bgImageComputed_) {
@@ -276,7 +282,6 @@ namespace bias
                             rp[xx][ch] = (uchar)(alpha * c[ch] + (1.0 - alpha) * rp[xx][ch]);
                     }
                 }
-                cv::rectangle(currentImageCopy, box, cv::Scalar(90, 90, 90), 1); // seg box
             }
             // wing-fit lines + centroid (no ellipse)
             if (config_.trackWings && flyEllipse_.nWingsDetected > 0) {
@@ -327,7 +332,10 @@ namespace bias
         // repaints, so cheap.
         if (config_.zoomToFly && flyEllipse_.a > 0.0 && !currentImageCopy.empty()) {
             int W = currentImageCopy.cols, H = currentImageCopy.rows;
-            int halfH = std::max(20, (int)std::lround(8.0 * flyEllipse_.a)); // fly + wings + context
+            // size the crop like the wing-segmentation box (shared WING_BBOX_A_FACTOR + the
+            // same morphology margin), so it scales with the fly and adapts to video zoom.
+            int margin = std::max(1, config_.radiusDilateBody) + std::max(1, config_.radiusOpenWing) + 2;
+            int halfH = (int)std::ceil(WING_BBOX_A_FACTOR * flyEllipse_.a) + margin;
             int halfW = std::max(1, (int)std::lround(halfH * (double)W / (double)H)); // keep aspect
             int bw = std::min(2 * halfW, W), bh = std::min(2 * halfH, H);
             int x0 = std::min(std::max(0, clampToInt(flyEllipse_.x) - bw / 2), W - bw);
@@ -1492,7 +1500,7 @@ namespace bias
         return r - M_PI;
     }
 
-    void FlyTrackPlugin::resolveHeadTail(double wingScoreKeep, double wingScoreFlip, bool wingValid) {
+    void FlyTrackPlugin::resolveHeadTail(double wingScoreKeep, double wingScoreFlip, int wingRearPxKeep, int wingRearPxFlip, bool wingValid) {
 
         double velmag = 0.0;
         double dotprod;
@@ -1524,7 +1532,10 @@ namespace bias
             double sFlip = 1.0 - sKeep;
             costWing0 = -sKeep;
             costWing1 = -sFlip;
-            if (sTot >= (double)config_.minSingleWingArea && std::abs(sKeep - sFlip) > MIN_VEL_MATCH_DOTPROD)
+            // magnitude gate on the unweighted rear-pixel count (so minSingleWingArea stays a
+            // pixel count), direction gate on the normalized weighted score (a unitless ratio).
+            if ((wingRearPxKeep + wingRearPxFlip) >= config_.minSingleWingArea
+                && std::abs(sKeep - sFlip) > MIN_VEL_MATCH_DOTPROD)
                 wingConfident = true;
         }
 
@@ -1623,9 +1634,8 @@ namespace bias
 
         // For speed, segment wings only within a bounding box around the pre-tracked fly
         // (body + wings) instead of the whole frame. Wings trail the centroid by ~a body
-        // length, so a half-width of a few * a contains them. Raise WING_BBOX_A_FACTOR if
-        // wings ever get clipped. The +margin leaves room for the morphology kernels.
-        const double WING_BBOX_A_FACTOR = 5.0;
+        // length, so a half-width of WING_BBOX_A_FACTOR * a contains them (shared with the
+        // preview zoom). The +margin leaves room for the morphology kernels.
         int margin = rb + rw + 2;
         int half = (int)std::ceil(WING_BBOX_A_FACTOR * flyEllipse_.a) + margin;
         int cx = (int)std::lround(flyEllipse_.x);
@@ -1738,7 +1748,7 @@ namespace bias
         double x, double y, double headTheta, const FlyTrackConfig& config) {
         WingFitResult r;
         r.angleL = 0.0; r.angleR = 0.0; r.troughAngle = 0.0;
-        r.nWings = 0; r.areaL = 0.0; r.areaR = 0.0; r.score = 0.0;
+        r.nWings = 0; r.areaL = 0.0; r.areaR = 0.0; r.score = 0.0; r.nRearPx = 0;
 
         const double maxAngle = config.maxWingPxAngleDeg * M_PI / 180.0;
         const double minNonzero = config.minNonzeroWingAngleDeg * M_PI / 180.0;
@@ -1778,6 +1788,7 @@ namespace bias
             }
         }
         const int nwingpx = (int)dth.size();
+        r.nRearPx = nwingpx; // unweighted rear-window pixel count (for the head/tail magnitude gate)
         // angle-weighted head/tail score = sum_b count[b]*wbin[b] (one nBins-length dot of the
         // raw histogram, no per-pixel trig). Computed from the counts so keep/flip share the
         // same scale even when one hypothesis is too sparse and early-returns below.
@@ -1958,7 +1969,7 @@ namespace bias
         flyEllipse_.htScoreKeep = wfKeep.score;
         flyEllipse_.htScoreFlip = wfFlip.score;
 
-        resolveHeadTail(wfKeep.score, wfFlip.score, true);
+        resolveHeadTail(wfKeep.score, wfFlip.score, wfKeep.nRearPx, wfFlip.nRearPx, true);
 
         // pick the fit matching the resolved orientation (flipped if theta moved ~pi from theta0)
         bool flipped = std::abs(mod2pi(flyEllipse_.theta - theta0)) > (M_PI / 2.0);
