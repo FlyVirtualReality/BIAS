@@ -102,7 +102,7 @@ Step-by-step instructions for doing real-time tracking of a single fly:
 
 ## Command-line arguments
 
-`test_gui.exe` accepts the following options. These are mainly for **offline tracking of recorded videos** (and for batch/headless runs); with no options BIAS starts normally and captures from an attached camera.
+`test_gui.exe` accepts the following options. These are mainly for **offline tracking of recorded videos** (and for batch/headless runs); with no options BIAS starts normally and captures from an attached camera. When `-i`/`--in-video` is given, BIAS runs entirely from the video file and **no camera needs to be attached**.
 
 | Option | Argument | Description |
 | --- | --- | --- |
@@ -111,6 +111,7 @@ Step-by-step instructions for doing real-time tracking of a single fly:
 | `-s`, `--start-frame` | `<start-frame>` | When reading from a video (`-i`), seek to and begin tracking at this frame instead of the beginning (video input only). Useful for jumping to a segment of interest without tracking from frame 0. |
 | `-o`, `--out-track` | `<out-track-file>` | Write the FlyTrack trajectory to this path, overriding the output path in the config. |
 | `--debug-seg-all-frames` | _(flag)_ | Dump the wing-segmentation debug image for **every** frame (to `<Debug Output Folder>/wingseg/wingseg_<frame>.png`) instead of only the first tracked frame. Requires **Debug** enabled in the config. Writes one PNG per frame — run short segments. |
+| `--play-fps` | `<fps>` | When reading from a video (`-i`), throttle playback to this many frames per second so it plays at a realistic rate like a real camera, instead of as fast as the machine can decode/track. `0` (default) = flat out. Useful when testing live behavior (e.g. HTTP polling) against a recorded video. |
 | `-h`, `--help` | _(flag)_ | Show the help message and exit. |
 
 Example — track a recorded video with a saved configuration, starting at frame 15000 and writing the trajectory to a chosen file:
@@ -124,6 +125,45 @@ C:\Code\BIAS\build-vs\Release\test_gui.exe `
 ```
 
 The FlyTrack plugin must be enabled (in the loaded config, or via the **Plugins -> Enabled** menu) for tracking to run.
+
+## External control over HTTP
+
+BIAS exposes an HTTP server for external control — start/stop capture, configuration, and reading tracking results. Each camera window runs its own server. The port is `5000 + 10 × (camera number + 1)`, so **5010** for the first camera (camera 0); it can be overridden in the configuration (allowed range 5000–20000).
+
+Commands are sent as URL query parameters; the response is a JSON array of `{command, success, message, value}` objects:
+
+```
+http://127.0.0.1:5010/?get-status
+http://127.0.0.1:5010/?start-capture
+```
+
+### Reading the FlyTrack trajectory
+
+FlyTrack results are read with `plugin-cmd`, whose value is a URL-encoded JSON object `{"plugin":"FlyTrack","cmd":"<cmd>"}`. The tracker pushes one ellipse per tracked frame onto a queue; the commands differ in how they read it:
+
+| `cmd` | Returns | Effect on the queue |
+| --- | --- | --- |
+| `pop-back-track` | newest entry | removes it |
+| `pop-front-track` | oldest entry | removes it (drains in order) |
+| `get-last-clear-track` | newest entry | clears the whole queue |
+
+Each returned ellipse includes the body fields (`frame, x, y, a, b, theta`) and, when wing tracking is on, the wing fields (`wing_anglel, wing_angler, nwings, wing_areal, wing_arear`).
+
+### Polling faster than the frame rate (keep-alive)
+
+By default the server closes the TCP connection after each response. Opening a new connection for every poll caps the rate (~50 Hz in practice) and adds latency — a problem when you want to poll *faster* than the camera so the consumer always has the newest frame.
+
+To avoid this, a polling client can request **HTTP keep-alive**: reuse one TCP connection and append `&keep-alive=1` to each `plugin-cmd` request. The server then leaves the connection open for the next request. Measured against a 120 fps video, this raised polling from ~50 Hz to ~500 Hz at ~1–2 ms latency, with **0% of produced frames dropped** when reading with `get-last-clear-track`.
+
+- Keep-alive is honored **only** for `plugin-cmd` requests that include `keep-alive=1`; every other command always closes the connection, and clients that don't opt in are unaffected.
+- A kept-open connection is closed automatically after 5 s of inactivity, so an abandoned client doesn't leak a connection.
+- Send `keep-alive=0` (or just close the socket) on the final poll for a clean shutdown.
+
+A reference polling client is provided at `src/plugin/flytrack/poll_http.py` (keep-alive on by default; `--no-keep-alive` reverts to a new connection per poll):
+
+```powershell
+python src\plugin\flytrack\poll_http.py --port 5010 --cmd get-last-clear-track --rate 0 --duration 10
+```
 
 ## Developer Build Instructions
 

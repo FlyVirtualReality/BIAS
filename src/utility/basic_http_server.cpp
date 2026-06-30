@@ -4,6 +4,7 @@
 #include <QStringList>
 #include <QDateTime>
 #include <QVariantList>
+#include <QTimer>
 #include <iostream>
 //#include "camera_window.hpp"
 #include "json.hpp"
@@ -45,6 +46,11 @@ namespace bias
     }
     QMap<QString,QString> ESCAPE_TO_CHAR_MAP = createEscapeToCharMap();
 
+    // Close a kept-open (keep-alive) connection after this many ms of inactivity, so a
+    // client that vanishes without closing the socket doesn't leak a connection. Re-armed
+    // on every request; far longer than the gap between polls at any sane rate.
+    const int IDLE_TIMEOUT_MS = 5000;
+
 
     // Methods - public
     // -------------------------------------------------------------------------
@@ -55,17 +61,27 @@ namespace bias
 
     void BasicHttpServer::incomingConnection(qintptr socket) 
     { 
-        QTcpSocket* s = new QTcpSocket(this); 
+        QTcpSocket* s = new QTcpSocket(this);
         connect(s, SIGNAL(readyRead()), this, SLOT(readClient()));
         connect(s, SIGNAL(disconnected()), this, SLOT(discardClient()));
+
+        // Idle-timeout watchdog: closes the connection if it goes quiet (handles a
+        // keep-alive client that disappears without closing, and a client that connects
+        // but never sends a complete request). The timer is a child of the socket, so it
+        // is destroyed with it. Armed now and re-armed on each request in readClient().
+        QTimer* idleTimer = new QTimer(s);
+        idleTimer->setSingleShot(true);
+        connect(idleTimer, &QTimer::timeout, s, &QTcpSocket::close);
+        idleTimer->start(IDLE_TIMEOUT_MS);
+
         s->setSocketDescriptor(socket);
     }
 
 
     // Protected methods
     // ------------------------------------------------------------------------
-    void BasicHttpServer::handleGetRequest(QTcpSocket *socketPtr, QStringList &tokens)
-    { 
+    bool BasicHttpServer::handleGetRequest(QTcpSocket *socketPtr, QStringList &tokens)
+    {
         QTextStream os(socketPtr);
         os.setAutoDetectUnicode(true);
 
@@ -73,7 +89,7 @@ namespace bias
         if (tokens.size() < 2)
         {
             sendBadRequestResp(os,"not enought tokens");
-            return;
+            return false;
         }
 
         // Parse tokens
@@ -83,7 +99,7 @@ namespace bias
         if (paramsString.length() == 1)
         {
             sendRunningResp(os);
-            return;
+            return false;
         }
         else if (paramsString.length() > 1)
         {
@@ -92,57 +108,69 @@ namespace bias
             if (secondChar != QChar('?'))
             {
                 sendBadRequestResp(os, "no ? character preceeding parameters");
-                return;
+                return false;
             }
 
             paramsString.remove(0,2);
             QStringList paramsList = paramsString.split("&",QString::SkipEmptyParts);
             if (!paramsList.isEmpty())
             {
-                // We have some parameters - send appropriate response
-                handleParamsRequest(os, paramsList);
-                return;
+                // We have some parameters - send appropriate response. The params
+                // path writes its own response (with Content-Length) directly to the
+                // socket so we do not use the QTextStream 'os' here.
+                return handleParamsRequest(socketPtr, paramsList);
             }
             else
             {
                 // No parameters follow '?' character
                 sendBadRequestResp(os,"not parameters following ? char");
-                return;
+                return false;
             }
         }
+        return false;
     }
-    
 
-    void BasicHttpServer::handleParamsRequest(QTextStream &os, QStringList &paramsList)
-    { 
-        os << "HTTP/1.0 200 Ok\r\n";
-        os << "Content-Type: application/json; charset=\"utf-8\"\r\n\r\n";
 
-        // Handle requests
+    bool BasicHttpServer::handleParamsRequest(QTcpSocket *socketPtr, QStringList &paramsList)
+    {
+        // Handle requests. A connection is kept open (HTTP keep-alive) only when the
+        // client explicitly opts in with a "keep-alive=1" argument AND every command in
+        // the request is "plugin-cmd". Any other command forces the connection closed,
+        // so keep-alive is impossible for non-polling commands.
         QVariantList respList;
         QVariantMap cmdMap;
-        for (unsigned int i=0; i<paramsList.size(); i++)
+        bool keepAliveRequested = false;
+        bool allPluginCmd = true;
+        int numCmd = 0;
+        for (int i=0; i<paramsList.size(); i++)
         {
-            QString name;
-            QString value;
-
             QStringList parts = paramsList[i].split("=",QString::SkipEmptyParts);
             if (parts.size() == 0)
             {
                 // Nothing here - just skip it
                 continue;
             }
-            name = parts[0];
+            QString name = parts[0];
+            QString value = (parts.size() >= 2) ? parts[1] : QString("");
 
-            if (parts.size() == 1)
+            if (name == QString("keep-alive"))
             {
-                // Just command name 
-                cmdMap = paramsRequestSwitchYard(name, QString(""));
+                // Transport control argument, not a command - consume it here.
+                keepAliveRequested = (value == QString("1")) ||
+                                     (value.toLower() == QString("true"));
+                continue;
             }
-            else if (parts.size() == 2)
+
+            numCmd++;
+            if (name != QString("plugin-cmd"))
             {
-                // Command name + parameters
-                cmdMap = paramsRequestSwitchYard(name,parts[1]);
+                allPluginCmd = false;
+            }
+
+            if (parts.size() <= 2)
+            {
+                // Command name (+ optional parameters)
+                cmdMap = paramsRequestSwitchYard(name, value);
             }
             else
             {
@@ -151,15 +179,28 @@ namespace bias
                 cmdMap.insert("success", false);
                 cmdMap.insert("message", "unable to parse command");
             }
-            //respMap.insert(name,cmdMap);
             respList.append(cmdMap);
         }
 
-        // Send response
+        bool keepAlive = keepAliveRequested && allPluginCmd && (numCmd > 0);
+
+        // Serialize the body first so we can send a Content-Length header. A reused
+        // (keep-alive) connection needs Content-Length to find where each response
+        // ends; close-style clients ignore it harmlessly.
         bool ok;
-        //QByteArray jsonResp = QtJson::serialize(respMap,ok);
         QByteArray jsonResp = QtJson::serialize(respList,ok);
-        os << QString(jsonResp) << "\n";
+
+        QByteArray response;
+        response += "HTTP/1.0 200 Ok\r\n";
+        response += "Content-Type: application/json; charset=\"utf-8\"\r\n";
+        response += "Content-Length: " + QByteArray::number(jsonResp.size()) + "\r\n";
+        response += keepAlive ? "Connection: keep-alive\r\n" : "Connection: close\r\n";
+        response += "\r\n";
+        response += jsonResp;
+
+        socketPtr->write(response);
+        socketPtr->flush();
+        return keepAlive;
     }
 
 
@@ -205,23 +246,57 @@ namespace bias
     void BasicHttpServer::readClient()
     {
         QTcpSocket* socketPtr = (QTcpSocket*) sender();
-        if (socketPtr->canReadLine()) 
+
+        // Process every complete request currently buffered on the socket. A GET
+        // request is complete once the blank line terminating its headers has been
+        // received (GET has no body). Looping lets a single keep-alive connection
+        // serve back-to-back requests; the connection stays open between them unless
+        // a request declines keep-alive (or is not an all-plugin-cmd request).
+        while (socketPtr->bytesAvailable() > 0)
         {
+            // Wait until the full header block has arrived so draining never stops
+            // mid-request (which would desync the next request on a kept-open socket).
+            QByteArray buffered = socketPtr->peek(socketPtr->bytesAvailable());
+            if (!buffered.contains("\r\n\r\n") && !buffered.contains("\n\n"))
+            {
+                return; // headers not fully received yet - wait for more data
+            }
+
+            // Read the request line, then drain the remaining header lines.
             QString requestString = QString(socketPtr->readLine());
-            QStringList tokens = splitRequestString(requestString);
-            if (!tokens.isEmpty()) 
+            while (socketPtr->canReadLine())
             {
-                if (tokens[0] == "GET") 
+                QByteArray line = socketPtr->readLine();
+                if (line == "\r\n" || line == "\n")
                 {
-                    handleGetRequest(socketPtr, tokens);
-                } 
+                    break; // end of headers
+                }
             }
-            socketPtr -> close();
-            if (socketPtr -> state() == QTcpSocket::UnconnectedState)
+
+            bool keepAlive = false;
+            QStringList tokens = splitRequestString(requestString);
+            if (!tokens.isEmpty() && tokens[0] == "GET")
             {
-                delete socketPtr;
+                keepAlive = handleGetRequest(socketPtr, tokens);
             }
-        } 
+
+            if (!keepAlive)
+            {
+                socketPtr -> close();
+                if (socketPtr -> state() == QTcpSocket::UnconnectedState)
+                {
+                    delete socketPtr;
+                }
+                return;
+            }
+
+            // Connection kept open - reset the idle-timeout watchdog.
+            QTimer* idleTimer = socketPtr->findChild<QTimer*>();
+            if (idleTimer != nullptr)
+            {
+                idleTimer->start(IDLE_TIMEOUT_MS);
+            }
+        }
     }
 
 

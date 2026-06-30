@@ -8,7 +8,7 @@
 #include <QTextStream>
 #include <QVariantMap>
 
-class QTcpSockect;
+class QTcpSocket;
 
 namespace bias
 {
@@ -24,8 +24,10 @@ namespace bias
             virtual void incomingConnection(qintptr socket);
 
         protected:
-            virtual void handleGetRequest(QTcpSocket *socket, QStringList &tokens);
-            virtual void handleParamsRequest(QTextStream &os, QStringList &paramsList);
+            // Return value: true if the connection should be kept open (HTTP keep-alive),
+            // false if it should be closed after the response is sent.
+            virtual bool handleGetRequest(QTcpSocket *socket, QStringList &tokens);
+            virtual bool handleParamsRequest(QTcpSocket *socket, QStringList &paramsList);
             virtual void sendBadRequestResp(QTextStream &os, QString msg);
             virtual void sendRunningResp(QTextStream &os);
             virtual QVariantMap paramsRequestSwitchYard(QString name, QString value);

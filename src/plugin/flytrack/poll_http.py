@@ -24,31 +24,77 @@ Notes:
   * Stdlib only (urllib/json) -- no numpy/requests needed.
 """
 import argparse
+import http.client
 import json
 import time
 import urllib.parse
-import urllib.request
-import urllib.error
 
 
-def poll_once(host, port, plugin, cmd, timeout):
-    q = urllib.parse.quote(json.dumps({"plugin": plugin, "cmd": cmd}))
-    url = "http://%s:%d/?plugin-cmd=%s" % (host, port, q)
-    t0 = time.perf_counter()
-    with urllib.request.urlopen(url, timeout=timeout) as r:
-        body = r.read().decode("utf-8", "replace")
-    dt = time.perf_counter() - t0
+def _parse_ellipse(body):
     # response is a JSON array: [{success, message, value, command}], value = ellipse JSON str
     data = json.loads(body)
     item = data[0] if isinstance(data, list) and data else data
-    ell = None
     val = item.get("value", "") if isinstance(item, dict) else ""
     if isinstance(item, dict) and item.get("success") and val:
         try:
-            ell = json.loads(val) if isinstance(val, str) else val
+            return json.loads(val) if isinstance(val, str) else val
         except (json.JSONDecodeError, TypeError):
-            ell = None
-    return dt, ell
+            return None
+    return None
+
+
+class Poller:
+    """Polls the BIAS HTTP server. In keep-alive mode it reuses a single TCP
+    connection (sending keep-alive=1) so polling isn't capped by per-request
+    connection setup; otherwise it opens and closes a connection per poll
+    (like BIAS's default behavior, for comparison)."""
+
+    def __init__(self, host, port, timeout, keep_alive):
+        self.host = host
+        self.port = port
+        self.timeout = timeout
+        self.keep_alive = keep_alive
+        self.conn = None
+
+    def _connect(self):
+        self.conn = http.client.HTTPConnection(self.host, self.port, timeout=self.timeout)
+
+    def close(self):
+        if self.conn is not None:
+            try:
+                self.conn.close()
+            except OSError:
+                pass
+            self.conn = None
+
+    def poll(self, plugin, cmd, last=False):
+        params = {"plugin": plugin, "cmd": cmd}
+        q = urllib.parse.quote(json.dumps(params))
+        path = "/?plugin-cmd=%s" % q
+        if self.keep_alive:
+            # keep-alive=1 every poll; 0 on the final poll so the server closes cleanly.
+            path += "&keep-alive=%d" % (0 if last else 1)
+        hdr = {"Connection": "keep-alive" if (self.keep_alive and not last) else "close"}
+
+        t0 = time.perf_counter()
+        if self.conn is None:
+            self._connect()
+        try:
+            self.conn.request("GET", path, headers=hdr)
+            r = self.conn.getresponse()
+            body = r.read().decode("utf-8", "replace")
+        except (http.client.HTTPException, OSError):
+            # stale/closed connection -- reconnect once and retry
+            self.close()
+            self._connect()
+            self.conn.request("GET", path, headers=hdr)
+            r = self.conn.getresponse()
+            body = r.read().decode("utf-8", "replace")
+        dt = time.perf_counter() - t0
+
+        if not self.keep_alive or last:
+            self.close()
+        return dt, _parse_ellipse(body)
 
 
 def main():
@@ -62,7 +108,11 @@ def main():
     ap.add_argument("--duration", type=float, default=10.0, help="seconds to poll")
     ap.add_argument("--timeout", type=float, default=2.0, help="per-request timeout (s) = hang threshold")
     ap.add_argument("--quiet", action="store_true", help="suppress the per-poll lines (summary only)")
+    ap.add_argument("--no-keep-alive", action="store_true",
+                    help="open/close a new connection every poll (default: keep-alive, reuse one)")
     args = ap.parse_args()
+    keep_alive = not args.no_keep_alive
+    poller = Poller(args.host, args.port, args.timeout, keep_alive)
 
     period = 1.0 / args.rate if args.rate > 0 else 0.0
     latencies = []
@@ -71,8 +121,9 @@ def main():
     n_poll = n_empty = n_hang = n_err = 0
     prev_fr = None
 
-    print("polling http://%s:%d  cmd=%s  rate=%s  for %.0fs ..."
-          % (args.host, args.port, args.cmd, "max" if args.rate == 0 else args.rate, args.duration))
+    print("polling http://%s:%d  cmd=%s  rate=%s  keep-alive=%s  for %.0fs ..."
+          % (args.host, args.port, args.cmd, "max" if args.rate == 0 else args.rate,
+             "on" if keep_alive else "off", args.duration))
     t_end = time.perf_counter() + args.duration
     next_t = time.perf_counter()
     while time.perf_counter() < t_end:
@@ -83,7 +134,7 @@ def main():
             next_t += period
         n_poll += 1
         try:
-            dt, ell = poll_once(args.host, args.port, args.plugin, args.cmd, args.timeout)
+            dt, ell = poller.poll(args.plugin, args.cmd)
             latencies.append(dt)
             if ell is None:
                 n_empty += 1
@@ -104,17 +155,24 @@ def main():
                              float(ell.get("x", 0)), float(ell.get("y", 0)), float(ell.get("theta", 0)),
                              int(ell.get("nwings", 0)),
                              float(ell.get("wing_anglel", 0)), float(ell.get("wing_angler", 0))))
-        except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
-            reason = getattr(e, "reason", e)
-            is_to = isinstance(reason, TimeoutError) or "timed out" in str(reason).lower()
+        except (http.client.HTTPException, OSError) as e:
+            is_to = isinstance(e, TimeoutError) or "timed out" in str(e).lower()
             n_hang += int(is_to)
             n_err += int(not is_to)
             if not args.quiet:
-                print("[%5d] %s: %s" % (n_poll, "HANG" if is_to else "ERR", reason))
+                print("[%5d] %s: %s" % (n_poll, "HANG" if is_to else "ERR", e))
         except Exception as e:
             n_err += 1
             if not args.quiet:
                 print("[%5d] ERR: %s" % (n_poll, e))
+
+    # Tell the server we're done so it closes the kept-open connection cleanly.
+    if keep_alive:
+        try:
+            poller.poll(args.plugin, args.cmd, last=True)
+        except (http.client.HTTPException, OSError):
+            pass
+    poller.close()
 
     # ---- summary ----
     print("\npolls=%d  with-data=%d  empty=%d  hangs(>%.1fs)=%d  errors=%d  achieved=%.0f Hz"
