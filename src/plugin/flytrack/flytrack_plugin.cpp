@@ -260,93 +260,97 @@ namespace bias
         const cv::Scalar COLOR_BODY(180, 119, 31);
         const cv::Scalar COLOR_WING(14, 127, 255);
 
-        // wing-segmentation view: transparent body/wing overlay on the real image + wing
-        // fits, no ellipse. (Normal view below uses the binary foreground as background.)
-        if (config_.showWingSegmentation) {
-            cv::cvtColor(currentImage_, currentImageCopy, cv::COLOR_GRAY2BGR);
-            cv::Rect box = wingSegBox_;
-            cv::Rect full(0, 0, currentImageCopy.cols, currentImageCopy.rows);
-            if (box.width > 0 && box.height > 0 && (box & full) == box
-                && wingSegLabels_.size() == box.size()) {
-                const double alpha = 0.45; // overlay opacity (fly visible underneath)
-                cv::Vec3b body((uchar)COLOR_BODY[0], (uchar)COLOR_BODY[1], (uchar)COLOR_BODY[2]);
-                cv::Vec3b wing((uchar)COLOR_WING[0], (uchar)COLOR_WING[1], (uchar)COLOR_WING[2]);
-                cv::Mat roi = currentImageCopy(box);
-                for (int yy = 0; yy < roi.rows; yy++) {
-                    const unsigned char* lp = wingSegLabels_.ptr<unsigned char>(yy);
-                    cv::Vec3b* rp = roi.ptr<cv::Vec3b>(yy);
-                    for (int xx = 0; xx < roi.cols; xx++) {
-                        if (lp[xx] == 0) continue;
-                        const cv::Vec3b& c = (lp[xx] == 2) ? wing : body;
-                        for (int ch = 0; ch < 3; ch++)
-                            rp[xx][ch] = (uchar)(alpha * c[ch] + (1.0 - alpha) * rp[xx][ch]);
-                    }
-                }
-            }
-            // wing-fit lines + centroid (no ellipse)
-            if (config_.trackWings && flyEllipse_.nWingsDetected > 0) {
-                double wingLen = 2.0 * flyEllipse_.a;
-                double rear = flyEllipse_.theta + M_PI;
-                double wingAngles[2] = { flyEllipse_.wingAngleL, flyEllipse_.wingAngleR };
-                cv::Point center(clampToInt(flyEllipse_.x), clampToInt(flyEllipse_.y));
-                for (int w = 0; w < 2; w++) {
-                    if (flyEllipse_.nWingsDetected < 2 && std::abs(wingAngles[w]) < 1e-6) continue;
-                    double ang = rear + wingAngles[w];
-                    cv::Point tip(clampToInt(flyEllipse_.x + wingLen * std::cos(ang)),
-                                  clampToInt(flyEllipse_.y + wingLen * std::sin(ang)));
-                    cv::line(currentImageCopy, center, tip, COLOR_WING, 1, cv::LINE_AA);
-                }
-                cv::drawMarker(currentImageCopy, center, cv::Scalar(255, 255, 255), cv::MARKER_CROSS, 6, 1);
-            }
-        }
-        else {
-        currentImageCopy = isFg_.clone();
-        cv::cvtColor(currentImageCopy, currentImageCopy, cv::COLOR_GRAY2BGR);
-        // plot fit ellipse
-        cv::ellipse(currentImageCopy, cv::Point(clampToInt(flyEllipse_.x), clampToInt(flyEllipse_.y)),
-                cv::Size(clampToInt(flyEllipse_.a), clampToInt(flyEllipse_.b)),
-                flyEllipse_.theta * 180.0 / M_PI,
-                0, 360, cv::Scalar(0, 0, 255), 2);
-        cv::Point2d head = cv::Point2d(flyEllipse_.x + flyEllipse_.a * std::cos(flyEllipse_.theta),
-            			flyEllipse_.y + flyEllipse_.a * std::sin(flyEllipse_.theta));
-        cv::drawMarker(currentImageCopy, head, cv::Scalar(255, 0, 0), cv::MARKER_CROSS, 10, 2);
-        // plot wings (lines from the body centroid toward each wing tip, behind the body)
-        if (config_.trackWings && flyEllipse_.nWingsDetected > 0) {
-            double wingLen = 2.0 * flyEllipse_.a;
-            double rear = flyEllipse_.theta + M_PI;
-            double wingAngles[2] = { flyEllipse_.wingAngleL, flyEllipse_.wingAngleR };
-            cv::Point center(clampToInt(flyEllipse_.x), clampToInt(flyEllipse_.y));
-            for (int w = 0; w < 2; w++) {
-                // skip the padded phantom (zero-angle) wing when only one wing is detected
-                if (flyEllipse_.nWingsDetected < 2 && std::abs(wingAngles[w]) < 1e-6) continue;
-                double ang = rear + wingAngles[w];
-                cv::Point tip(clampToInt(flyEllipse_.x + wingLen * std::cos(ang)),
-                              clampToInt(flyEllipse_.y + wingLen * std::sin(ang)));
-                cv::line(currentImageCopy, center, tip, cv::Scalar(0, 255, 0), 1);
-            }
-        }
-        }
+        // Background: real image for the wing-seg view, binary foreground for the normal view.
+        const cv::Mat& srcGray = config_.showWingSegmentation ? currentImage_ : isFg_;
+        int W = srcGray.cols, H = srcGray.rows;
+        if (W == 0 || H == 0) { currentImageCopy = currentImage_.clone(); return; }
 
-        // optional zoom: crop a box around the fly (sized to the fly) and upscale it to fill
-        // the preview. Applied after all overlays so they zoom with the image. Only on preview
-        // repaints, so cheap.
-        if (config_.zoomToFly && flyEllipse_.a > 0.0 && !currentImageCopy.empty()) {
-            int W = currentImageCopy.cols, H = currentImageCopy.rows;
-            // size the crop like the wing-segmentation box (shared WING_BBOX_A_FACTOR + the
-            // same morphology margin), so it scales with the fly and adapts to video zoom.
+        // Crop-first: when zooming, convert and draw only the fly-sized box (then upscale to the
+        // display size), instead of rendering the whole frame and cropping. cropBox = full frame
+        // when not zooming. All overlays are drawn offset by the crop origin via P().
+        cv::Rect cropBox(0, 0, W, H);
+        bool zoom = config_.zoomToFly && flyEllipse_.a > 0.0;
+        if (zoom) {
             int margin = std::max(1, config_.radiusDilateBody) + std::max(1, config_.radiusOpenWing) + 2;
             int halfH = (int)std::ceil(WING_BBOX_A_FACTOR * flyEllipse_.a) + margin;
             int halfW = std::max(1, (int)std::lround(halfH * (double)W / (double)H)); // keep aspect
             int bw = std::min(2 * halfW, W), bh = std::min(2 * halfH, H);
             int x0 = std::min(std::max(0, clampToInt(flyEllipse_.x) - bw / 2), W - bw);
             int y0 = std::min(std::max(0, clampToInt(flyEllipse_.y) - bh / 2), H - bh);
-            // resize into a separate Mat: the crop is a sub-view of currentImageCopy, so an
-            // in-place resize would alias src/dst and corrupt the rows.
-            cv::Mat zoomed;
-            cv::resize(currentImageCopy(cv::Rect(x0, y0, bw, bh)), zoomed,
-                       cv::Size(W, H), 0, 0, cv::INTER_NEAREST);
-            currentImageCopy = zoomed;
+            cropBox = cv::Rect(x0, y0, bw, bh);
         }
+        const int ox = cropBox.x, oy = cropBox.y;
+        auto P = [&](double px, double py) { return cv::Point(clampToInt(px) - ox, clampToInt(py) - oy); };
+
+        // base image: convert only the crop box to BGR (== whole frame when not zooming)
+        cv::cvtColor(srcGray(cropBox), currentImageCopy, cv::COLOR_GRAY2BGR);
+
+        if (config_.showWingSegmentation) {
+            // transparent body/wing overlay over the part of the wing-seg box inside the crop
+            cv::Rect segBox = wingSegBox_;
+            if (segBox.width > 0 && segBox.height > 0 && wingSegLabels_.size() == segBox.size()) {
+                cv::Rect vis = segBox & cropBox;
+                if (vis.width > 0 && vis.height > 0) {
+                    const double alpha = 0.45; // overlay opacity (fly visible underneath)
+                    cv::Vec3b body((uchar)COLOR_BODY[0], (uchar)COLOR_BODY[1], (uchar)COLOR_BODY[2]);
+                    cv::Vec3b wing((uchar)COLOR_WING[0], (uchar)COLOR_WING[1], (uchar)COLOR_WING[2]);
+                    cv::Mat roi = currentImageCopy(cv::Rect(vis.x - ox, vis.y - oy, vis.width, vis.height));
+                    for (int yy = 0; yy < roi.rows; yy++) {
+                        const unsigned char* lp =
+                            wingSegLabels_.ptr<unsigned char>(vis.y - segBox.y + yy) + (vis.x - segBox.x);
+                        cv::Vec3b* rp = roi.ptr<cv::Vec3b>(yy);
+                        for (int xx = 0; xx < roi.cols; xx++) {
+                            if (lp[xx] == 0) continue;
+                            const cv::Vec3b& c = (lp[xx] == 2) ? wing : body;
+                            for (int ch = 0; ch < 3; ch++)
+                                rp[xx][ch] = (uchar)(alpha * c[ch] + (1.0 - alpha) * rp[xx][ch]);
+                        }
+                    }
+                }
+            }
+            // wing-fit lines + centroid (no ellipse)
+            if (config_.trackWings && flyEllipse_.nWingsDetected > 0) {
+                double wingLen = 2.0 * flyEllipse_.a, rear = flyEllipse_.theta + M_PI;
+                double wa[2] = { flyEllipse_.wingAngleL, flyEllipse_.wingAngleR };
+                cv::Point center = P(flyEllipse_.x, flyEllipse_.y);
+                for (int w = 0; w < 2; w++) {
+                    if (flyEllipse_.nWingsDetected < 2 && std::abs(wa[w]) < 1e-6) continue;
+                    double ang = rear + wa[w];
+                    cv::line(currentImageCopy, center,
+                             P(flyEllipse_.x + wingLen * std::cos(ang), flyEllipse_.y + wingLen * std::sin(ang)),
+                             COLOR_WING, 1, cv::LINE_AA);
+                }
+                cv::drawMarker(currentImageCopy, center, cv::Scalar(255, 255, 255), cv::MARKER_CROSS, 6, 1);
+            }
+        }
+        else {
+            cv::ellipse(currentImageCopy, P(flyEllipse_.x, flyEllipse_.y),
+                    cv::Size(clampToInt(flyEllipse_.a), clampToInt(flyEllipse_.b)),
+                    flyEllipse_.theta * 180.0 / M_PI, 0, 360, cv::Scalar(0, 0, 255), 2);
+            cv::drawMarker(currentImageCopy,
+                    P(flyEllipse_.x + flyEllipse_.a * std::cos(flyEllipse_.theta),
+                      flyEllipse_.y + flyEllipse_.a * std::sin(flyEllipse_.theta)),
+                    cv::Scalar(255, 0, 0), cv::MARKER_CROSS, 10, 2);
+            // plot wings (lines from the body centroid toward each wing tip, behind the body)
+            if (config_.trackWings && flyEllipse_.nWingsDetected > 0) {
+                double wingLen = 2.0 * flyEllipse_.a, rear = flyEllipse_.theta + M_PI;
+                double wa[2] = { flyEllipse_.wingAngleL, flyEllipse_.wingAngleR };
+                cv::Point center = P(flyEllipse_.x, flyEllipse_.y);
+                for (int w = 0; w < 2; w++) {
+                    // skip the padded phantom (zero-angle) wing when only one wing is detected
+                    if (flyEllipse_.nWingsDetected < 2 && std::abs(wa[w]) < 1e-6) continue;
+                    double ang = rear + wa[w];
+                    cv::line(currentImageCopy, center,
+                             P(flyEllipse_.x + wingLen * std::cos(ang), flyEllipse_.y + wingLen * std::sin(ang)),
+                             cv::Scalar(0, 255, 0), 1);
+                }
+            }
+        }
+
+        // When zooming we return the small cropped box as-is; the preview widget scales it up
+        // to the display size (KeepAspectRatio), so the QImage/pixmap/scale all stay box-sized
+        // instead of full-frame. (The box already has the frame's aspect ratio, so the framing
+        // is unchanged; the widget's smooth scaling replaces the previous crisp NEAREST upscale.)
     }
 
     void FlyTrackPlugin::getCurrentImageComputeBgMode(cv::Mat& currentImageCopy)
@@ -380,7 +384,14 @@ namespace bias
     }
 
     cv::Mat FlyTrackPlugin::getCurrentImage() {
-        acquireLock();
+        // Non-blocking: the preview must never wait on the tracking thread. If the tracker
+        // currently holds the lock, reuse the last rendered frame and return immediately, so
+        // the GUI thread (which also serves the HTTP server) doesn't stall behind tracking.
+        // Preview frames are cosmetic, so dropping one under load is fine. (lastImagePreviewed_
+        // is only ever written here, on the GUI thread, so reading it lock-free is safe.)
+        if (!tryLock()) {
+            return lastImagePreviewed_;
+        }
         if (frameCount_ == lastFramePreviewed_) {
             releaseLock();
             return lastImagePreviewed_;
@@ -1441,10 +1452,12 @@ namespace bias
     }
 
     // void updateEllipseHistory()
-    // add current flyEllipse_ to end of flyEllipseHistory_
+    // store the current flyEllipse_ as the (single) previous ellipse
     void FlyTrackPlugin::updateEllipseHistory() {
-        // add ellipse to history
-        flyEllipseHistory_.push_back(flyEllipse_);
+        // Keep only the last ellipse: updateVelocityHistory uses just .back()/.size(). This used
+        // to push_back every frame, growing flyEllipseHistory_ without bound (a memory leak that
+        // steadily slowed everything). assign(1,...) reuses the buffer -- no growth, no realloc.
+        flyEllipseHistory_.assign(1, flyEllipse_);
         flyEllipseDequePtr_->acquireLock();
 		if (flyEllipseDequePtr_->size() >= config_.maxTrackQueueLength-1) {
 			flyEllipseDequePtr_->pop_front();

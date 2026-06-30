@@ -65,29 +65,38 @@ int main (int argc, char *argv[])
     bias::CameraFinder cameraFinder;
     std::list<QSharedPointer<bias::CameraWindow>> windowPtrList;
 
-    // Get list guids for all cameras found
-    try
-    { 
-        guidList = cameraFinder.getGuidList();
-    }
-    catch (bias::RuntimeError &runtimeError)
+    if (!params.inVideoFile.isEmpty())
     {
-        QString msgTitle("Camera Enumeration Error");
-        QString msgText("Camera enumeration failed:\n\nError ID: ");
-        msgText += QString::number(runtimeError.id());
-        msgText += QString("\n\n");
-        msgText += QString::fromStdString(runtimeError.what());
-        QMessageBox::critical(0, msgTitle,msgText);
-        return 0;
+        // Video-input mode: no physical camera. Use a single placeholder guid so one
+        // CameraWindow is created; it captures from the input video instead of a camera.
+        guidList.push_back(bias::Guid());
     }
+    else
+    {
+        // Get list guids for all cameras found
+        try
+        {
+            guidList = cameraFinder.getGuidList();
+        }
+        catch (bias::RuntimeError &runtimeError)
+        {
+            QString msgTitle("Camera Enumeration Error");
+            QString msgText("Camera enumeration failed:\n\nError ID: ");
+            msgText += QString::number(runtimeError.id());
+            msgText += QString("\n\n");
+            msgText += QString::fromStdString(runtimeError.what());
+            QMessageBox::critical(0, msgTitle,msgText);
+            return 0;
+        }
 
-    // If no cameras found - error
-    if (guidList.empty()) 
-    {
-        QString msgTitle("Camera Enumeration Error");
-        QString msgText("No cameras found");
-        QMessageBox::critical(0, msgTitle,msgText);
-        return 0;
+        // If no cameras found - error
+        if (guidList.empty())
+        {
+            QString msgTitle("Camera Enumeration Error");
+            QString msgText("No cameras found");
+            QMessageBox::critical(0, msgTitle,msgText);
+            return 0;
+        }
     }
 
     // Get number of cameras

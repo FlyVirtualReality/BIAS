@@ -169,6 +169,21 @@ namespace bias
             return rtnStatus;
         }
 
+        if (doCaptureFromVideo_)
+        {
+            // Video-input mode: "connect" to the input video instead of a camera. There is no
+            // hardware, so skip cameraPtr_->connect() and the vendor/model info query; just
+            // mark connected so Start is enabled (frames come from the video backend).
+            connected_ = true;
+            connectButtonPtr_ -> setText(QString("Disconnect"));
+            updateStatusLabel();
+            startButtonPtr_ -> setEnabled(true);
+            menuCameraPtr_ -> setEnabled(false);
+            updateAllMenus();
+            rtnStatus.success = true;
+            return rtnStatus;
+        }
+
         if (cameraPtr_ -> tryLock(CAMERA_LOCK_TRY_DT))
         {
             try
@@ -247,6 +262,20 @@ namespace bias
         {
             rtnStatus.success = true;
             rtnStatus.message = QString("Camera already disconnected");
+            return rtnStatus;
+        }
+
+        if (doCaptureFromVideo_)
+        {
+            // Video-input mode: no hardware to disconnect.
+            connected_ = false;
+            connectButtonPtr_ -> setText(QString("Connect"));
+            updateStatusLabel();
+            startButtonPtr_ -> setEnabled(false);
+            menuCameraPtr_ -> setEnabled(false);
+            setCaptureTimeLabel(0.0);
+            updateAllMenus();
+            rtnStatus.success = true;
             return rtnStatus;
         }
 
@@ -1824,20 +1853,30 @@ namespace bias
 
             if (haveNewImage)
             {
-                cv::Mat histMat = calcHistogram(cameraImageMat);
+                QWidget *curTab = tabWidgetPtr_ -> currentWidget();
                 cv::Size imgSize = cameraImageMat.size();
-                if (colorMapNumber_ != COLORMAP_NONE)
+
+                // Build the camera-preview pixmap only when its tab is showing: matToQImage on
+                // the full frame is expensive and otherwise wasted (e.g. on the Plugin tab).
+                if (curTab == previewTabPtr_)
                 {
-                    cv::applyColorMap(cameraImageMat,cameraImageMat, colorMapNumber_);
+                    if (colorMapNumber_ != COLORMAP_NONE)
+                    {
+                        cv::applyColorMap(cameraImageMat,cameraImageMat, colorMapNumber_);
+                    }
+                    QImage img = matToQImage(cameraImageMat);
+                    if (!img.isNull())
+                    {
+                        previewPixmapOriginal_ = QPixmap::fromImage(img);
+                        haveImagePixmap_ = true;
+                    }
                 }
-                QImage img = matToQImage(cameraImageMat);
 
-
-                // Set pixmaps and update image labels - note need to add pluginPixmap
-                if (!img.isNull()) 
+                // Histogram only when the histogram tab is showing
+                if (curTab == histogramTabPtr_)
                 {
-                    previewPixmapOriginal_ = QPixmap::fromImage(img);
-                    haveImagePixmap_ = true;
+                    cv::Mat histMat = calcHistogram(cameraImageMat);
+                    updateHistogramPixmap(histMat);
                 }
 
                 // Update status message
@@ -1864,13 +1903,13 @@ namespace bias
                 {
                     setCaptureTimeLabel(double(1.0e-3*captureDt));
                 }
-                updateHistogramPixmap(histMat);
             }
 
         } // if (capturing_)
 
 
-        // Update plugin preview
+        // Update plugin preview (only when its tab is showing -- otherwise the plugin image
+        // isn't built, and updateAllImageLabels skips the hidden labels)
         if ((isPluginEnabled()) && (tabWidgetPtr_ -> currentWidget() == pluginPreviewTabPtr_))
         {
             bool haveNewImage = false;
@@ -1888,17 +1927,14 @@ namespace bias
 
             if (haveNewImage)
             {
-
-                cv::Size pluginImageSize = pluginImageMat.size();
-                QImage pluginImage  = matToQImage(pluginImageMat);
-
+                QImage pluginImage = matToQImage(pluginImageMat);
                 if (!pluginImage.isNull())
                 {
                     pluginPixmapOriginal_ = QPixmap::fromImage(pluginImage);
                 }
             }
         }
-       
+
         updateAllImageLabels();
     }
 
@@ -2612,7 +2648,16 @@ namespace bias
 
         cameraNumber_ = cameraNumber;
         numberOfCameras_ = numberOfCameras;
-        cameraPtr_ = std::make_shared<Lockable<Camera>>(guid);
+        // In video-input mode there is no camera device, so build a default Camera (frames
+        // come from the video backend). Camera(guid) would throw on the placeholder guid.
+        if (!params.inVideoFile.isEmpty() && QFileInfo::exists(params.inVideoFile))
+        {
+            cameraPtr_ = std::make_shared<Lockable<Camera>>();
+        }
+        else
+        {
+            cameraPtr_ = std::make_shared<Lockable<Camera>>(guid);
+        }
 
         threadPoolPtr_ = new QThreadPool(this);
         threadPoolPtr_ -> setMaxThreadCount(MAX_THREAD_COUNT);
@@ -3457,33 +3502,23 @@ namespace bias
 
 
     void CameraWindow::updateAllImageLabels()
-    { 
-        updateImageLabel(
-                previewImageLabelPtr_,   
-                previewPixmapOriginal_,   
-                true,  
-                true,  
-                true,
-                true
-                );
-
-        updateImageLabel(
-                pluginImageLabelPtr_,    
-                pluginPixmapOriginal_,    
-                true,  
-                false, 
-                false,
-                false
-                );
-
-        updateImageLabel(
-                histogramImageLabelPtr_, 
-                histogramPixmapOriginal_, 
-                false, 
-                false, 
-                false,
-                false
-                );
+    {
+        // Only update the label on the currently-visible tab. The others aren't shown, so
+        // scaling + setPixmap on them is wasted GUI-thread work that delays the HTTP server
+        // and competes with tracking. (Switching tabs refreshes on the next frame.)
+        QWidget *curTab = tabWidgetPtr_ -> currentWidget();
+        if (curTab == previewTabPtr_)
+        {
+            updateImageLabel(previewImageLabelPtr_, previewPixmapOriginal_, true, true, true, true);
+        }
+        else if (curTab == pluginPreviewTabPtr_)
+        {
+            updateImageLabel(pluginImageLabelPtr_, pluginPixmapOriginal_, true, false, false, false);
+        }
+        else if (curTab == histogramTabPtr_)
+        {
+            updateImageLabel(histogramImageLabelPtr_, histogramPixmapOriginal_, false, false, false, false);
+        }
     }
 
 
@@ -3692,14 +3727,20 @@ namespace bias
 
     void CameraWindow::updateCameraMenu()
     {
-        updateCameraVideoModeMenu();
-        updateCameraFrameRateMenu();
-        updateCameraPropertiesMenu();
-        updateCameraTriggerMenu();
-        
-        if (connected_) 
-        { 
-            setMenuChildrenEnabled(menuCameraPtr_,true); 
+        // In video-input mode there is no camera device, so skip the submenu updates that
+        // query the camera (video modes, frame rates, properties, trigger) -- they would
+        // crash on the device-less camera -- and keep the camera menu disabled.
+        if (!doCaptureFromVideo_)
+        {
+            updateCameraVideoModeMenu();
+            updateCameraFrameRateMenu();
+            updateCameraPropertiesMenu();
+            updateCameraTriggerMenu();
+        }
+
+        if (connected_ && !doCaptureFromVideo_)
+        {
+            setMenuChildrenEnabled(menuCameraPtr_,true);
         }
         else
         {
@@ -4311,6 +4352,15 @@ namespace bias
     RtnStatus CameraWindow::setCameraFromMap(QVariantMap cameraMap, bool showErrorDlg)
     {
         RtnStatus rtnStatus;
+
+        // Video-input mode: no physical camera, so skip applying camera settings (format,
+        // properties, trigger). Frames come from the input video; these calls would error
+        // on the unconnected camera.
+        if (doCaptureFromVideo_)
+        {
+            rtnStatus.success = true;
+            return rtnStatus;
+        }
 
         QString errMsgTitle("Load Configuration Error (Camera)");
         QString currVendorName;
