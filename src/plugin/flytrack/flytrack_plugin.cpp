@@ -384,12 +384,14 @@ namespace bias
     }
 
     cv::Mat FlyTrackPlugin::getCurrentImage() {
-        // Non-blocking: the preview must never wait on the tracking thread. If the tracker
-        // currently holds the lock, reuse the last rendered frame and return immediately, so
-        // the GUI thread (which also serves the HTTP server) doesn't stall behind tracking.
-        // Preview frames are cosmetic, so dropping one under load is fine. (lastImagePreviewed_
-        // is only ever written here, on the GUI thread, so reading it lock-free is safe.)
-        if (!tryLock()) {
+        // Wait at most 1 ms for the tracking lock: enough to smooth the preview when the tracker
+        // is briefly between frames, but small enough that the GUI thread (which also serves the
+        // HTTP server) is never stalled noticeably. If the tracker still holds the lock, reuse
+        // the last rendered frame and return -- a dropped preview frame is fine.
+        // (lastImagePreviewed_ is only ever written here, on the GUI thread, so reading it
+        // lock-free is safe.)
+        const int PREVIEW_LOCK_TRY_MS = 1;
+        if (!tryLock(PREVIEW_LOCK_TRY_MS)) {
             return lastImagePreviewed_;
         }
         if (frameCount_ == lastFramePreviewed_) {
