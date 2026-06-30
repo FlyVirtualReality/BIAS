@@ -44,6 +44,7 @@ namespace bias
             void setIsVideo(bool v);
             void setVideoFileName(QString captureVideoFileName);
             void setStartFrame(int f);
+            void setPlayFps(double fps); // throttle video playback to this fps (0 = flat out)
 
             static unsigned int DEFAULT_NUM_STARTUP_SKIP;
             static unsigned int MIN_STARTUP_SKIP;
@@ -67,6 +68,7 @@ namespace bias
             bool isVideo_;
             QString vidFileName_;
             int startFrame_; // video frame to start from (0 = beginning)
+            double playFps_; // throttle video playback to this fps (0 = flat out, as fast as possible)
             videoBackend* vidObj_;
 
             std::shared_ptr<Lockable<Camera>> cameraPtr_;

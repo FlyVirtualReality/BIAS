@@ -51,6 +51,13 @@ int main (int argc, char *argv[])
     parser.addOption(QCommandLineOption(
 		QStringList() << "debug-seg-all-frames",
 		QString("Dump wing-segmentation debug image every frame (default: first frame only)")));
+    // --play-fps <fps>
+    // throttle video playback to <fps> frames/sec (video input only) so it plays at a realistic
+    // rate like a real camera; default 0 = flat out, as fast as the machine can decode/track.
+    parser.addOption(QCommandLineOption(
+		QStringList() << "play-fps",
+		QString("Throttle video playback to <fps> (video input only; 0 = flat out)"),
+		QString("fps")));
 
     parser.process(app);
     bias::CmdLineParams params;
@@ -59,6 +66,7 @@ int main (int argc, char *argv[])
     params.startFrame = parser.value("start-frame").toInt(); // 0 if not provided
     params.trajectoryFile = parser.value("out-track");
     params.debugSegAllFrames = parser.isSet("debug-seg-all-frames");
+    params.playFps = parser.value("play-fps").toDouble(); // 0 if not provided
 
 
     bias::GuidList guidList;

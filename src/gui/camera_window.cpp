@@ -498,6 +498,7 @@ namespace bias
         imageGrabberPtr_->setIsVideo(doCaptureFromVideo_);
         imageGrabberPtr_->setVideoFileName(captureVideoFileName_);
         imageGrabberPtr_->setStartFrame(captureStartFrame_);
+        imageGrabberPtr_->setPlayFps(capturePlayFps_);
 
         imageDispatcherPtr_ = new ImageDispatcher(
                 logging_, 
@@ -2674,6 +2675,7 @@ namespace bias
         captureVideoFileName_ = QString("");
         doCaptureFromVideo_ = false;
         captureStartFrame_ = params.startFrame;
+        capturePlayFps_ = params.playFps;
         if (!params.inVideoFile.isEmpty()) {
             if (QFileInfo::exists(params.inVideoFile)) {
                 captureVideoFileName_ = params.inVideoFile;

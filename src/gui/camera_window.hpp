@@ -52,6 +52,7 @@ namespace bias
 		int startFrame = 0; // video frame to start tracking from (video input only)
 		QString trajectoryFile; // output trajectory file path (overrides config)
 		bool debugSegAllFrames = false; // dump wing segmentation every frame (default: first frame only)
+		double playFps = 0.0; // throttle video playback to this fps (0 = flat out, video input only)
 	};
 
     class CameraWindow : public QMainWindow, private Ui::CameraWindow
@@ -316,6 +317,7 @@ namespace bias
             QString captureVideoFileName_;
             bool doCaptureFromVideo_;
             int captureStartFrame_; // video frame to start tracking from (video input only)
+            double capturePlayFps_; // throttle video playback to this fps (0 = flat out, video input only)
 
             void connectWidgets();
             void initialize(

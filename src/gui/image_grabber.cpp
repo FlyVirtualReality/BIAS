@@ -6,6 +6,7 @@
 #include <iostream>
 #include <QTime>
 #include <QThread>
+#include <QElapsedTimer>
 #include <QFileInfo>
 #include <opencv2/core/core.hpp>
 #include "video_utils.hpp"
@@ -63,6 +64,7 @@ namespace bias {
         isVideo_ = false;
         vidFileName_ = QString("");
         startFrame_ = 0;
+        playFps_ = 0.0;
 
     }
 
@@ -74,6 +76,9 @@ namespace bias {
     }
     void ImageGrabber::setStartFrame(int f) {
         startFrame_ = (f > 0) ? f : 0;
+    }
+    void ImageGrabber::setPlayFps(double fps) {
+        playFps_ = (fps > 0.0) ? fps : 0.0;
     }
 
     void ImageGrabber::initializeVidBackend()
@@ -195,12 +200,28 @@ namespace bias {
         //// -------------------------------------------------------------------------------
         
 
+        // Optional video playback throttle: pace the grab loop to playFps_ so the video plays
+        // at a realistic rate (like a real camera) rather than flat out. 0 = no throttle.
+        QElapsedTimer playTimer;
+        double playNextMs = 0.0;
+        if (isVideo_ && playFps_ > 0.0) { playTimer.start(); }
+
         // Grab images from camera until the done signal is given
         while (!done)
         {
             acquireLock();
             done = stopped_;
             releaseLock();
+
+            // pace video playback to playFps_ (sleep until this frame's scheduled time)
+            if (isVideo_ && playFps_ > 0.0)
+            {
+                qint64 nowMs = playTimer.elapsed();
+                if (playNextMs < (double)nowMs) { playNextMs = (double)nowMs; } // don't burst-catch-up after a stall
+                qint64 waitMs = (qint64)(playNextMs - (double)nowMs);
+                if (waitMs > 0) { QThread::msleep((unsigned long)waitMs); }
+                playNextMs += 1000.0 / playFps_;
+            }
 
             // Grab an image
             cameraPtr_->acquireLock();
