@@ -286,3 +286,8 @@ NodeMapData_MD_VC140_v3_0.dll
 XMLParser_MD_VC140_v3_0.dll
 
 Program was crashing in the StampedePlugin, commented out. 
+
+### Deploying the Qt runtime (windeployqt)
+
+This now runs automatically as a CMake post-build step for `test_gui` (see `WINDEPLOYQT_EXECUTABLE` in the top-level `CMakeLists.txt`), copying the matching Qt DLLs next to the exe so it can't pick up an incompatible Qt bundled with another SDK (e.g. Spinnaker's Qt 5.7) via `PATH`.
+To run it manually instead, e.g. for deployment to a machine without Qt installed: `<qt5>\msvc2019_64\bin\windeployqt.exe --no-translations path\to\test_gui.exe`.
