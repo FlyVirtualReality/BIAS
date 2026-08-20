@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+title: ' Basic Image Acquisition System (BIAS)'
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Will
+    family-names: Dickson
+  - orcid: 'https://orcid.org/0000-0002-5567-2512'
+    given-names: Kristin
+    family-names: Branson
+  - given-names: Alice
+    family-names: Robie
+    orcid: 'https://orcid.org/0000-0002-0784-2927'
+  - given-names: 'Michael '
+    name-particle: B
+    family-names: Reiser
+    orcid: 'https://orcid.org/0000-0002-4108-4517'
+repository-code: 'https://github.com/FlyVirtualReality/BIAS'
+abstract: >-
+  BIAS is a software application for recording video from
+  FLIR IEEE 1394 and USB3 Cameras. BIAS is being developed
+  with requirements of experiments in animal behaviors in
+  mind, for example recording the behavior of fruit flies in
+  walking arenas.
+license: GPL-3.0

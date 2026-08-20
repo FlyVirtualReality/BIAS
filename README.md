@@ -1,9 +1,15 @@
 # BIAS
 
-BIAS is a software application for recording video from IEEE 1394 and USB3
-Cameras.  BIAS was intially designed as image acquisition software for
-experiments in animial behavior. For example, recording the behavior of fruit
-flies in a walking arena. 
+BIAS is a software application for recording video from FLIR IEEE 1394 and USB3 Cameras. BIAS 
+is being developed with requirements of experiments in animal behaviors in mind, for example 
+recording the behavior of fruit flies in walking arenas.
+
+BIAS was based on an image acquisition software for Point Grey USB cameras developed by 
+[Kristin Branson](https://github.com/kristinbranson) in the early 2010's. 
+[Will Dickson](https://github.com/iorodeo) added support for firewire cameras (IEEE 1394)
+and added graphical configuration. Development of BIAS continues in the 
+[Branson Lab at Janelia](https://www.janelia.org/lab/branson-lab).
+
 
 ![Charlie the cat in BIAS](images/bias_charlie.png)
 
@@ -28,7 +34,16 @@ BIAS provides the following features:
 
 ## Documentation
 
-http://public.iorodeo.com/notes/bias/
+> [!WARNING]
+> The current state of the documentation is rescued from an archive file, matched BIAS-v0.58 
+> released on Jun 28, 2020 and was partially outdated at that time. 
+
+
+- [Introduction](doc/intro.md)
+- [Basic Usage](doc/basic_usage.md)
+- [External Control HTTP Commands](doc/ext_control_http_cmds.md)
+- [BIAS JSON configuration](doc/bias_json_config.md)
+- [Setting up a build environment on Windows 7 & 8](doc/build_environ_setup_win.md)
 
 ## Installation
 
