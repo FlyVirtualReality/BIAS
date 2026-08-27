@@ -76,6 +76,16 @@ if(with_qt_gui)
     find_package(Qt5Network REQUIRED)
     # KB 20240215 - added
     find_package(Qt5SerialPort REQUIRED)
+    # Locate windeployqt so we can auto-deploy the Qt runtime DLLs (see README.md)
+    if(WIN32)
+        get_target_property(_qt5_qmake_executable Qt5::qmake IMPORTED_LOCATION)
+        get_filename_component(_qt5_bin_dir "${_qt5_qmake_executable}" DIRECTORY)
+        find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS "${_qt5_bin_dir}")
+        if(NOT WINDEPLOYQT_EXECUTABLE)
+            message(WARNING "windeployqt not found next to qmake (${_qt5_bin_dir}); "
+                             "Qt runtime DLLs will not be deployed automatically after build.")
+        endif()
+    endif()
 
 endif()
 

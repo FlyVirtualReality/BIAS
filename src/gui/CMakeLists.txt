@@ -117,3 +117,12 @@ target_link_libraries(
 
 qt5_use_modules(test_gui Core Gui Widgets Network PrintSupport SerialPort)
 
+# Copy runtime DLLs next to test_gui.exe after each build (see README.md)
+if(WIN32 AND WINDEPLOYQT_EXECUTABLE)
+    add_custom_command(
+        TARGET test_gui POST_BUILD
+        COMMAND "${WINDEPLOYQT_EXECUTABLE}" --no-translations $<TARGET_FILE:test_gui>
+        COMMENT "Running windeployqt on test_gui.exe"
+        )
+endif()
+

@@ -15,6 +15,9 @@
 // ------------------------------------------------------------------------
 int main (int argc, char *argv[])
 {
+    // reduce number of threads for openCV to avoid temporarily allocating all cores
+    cv::setNumThreads(4);
+
     QApplication app(argc, argv);
    
     QCoreApplication::setApplicationName("BIAS");
